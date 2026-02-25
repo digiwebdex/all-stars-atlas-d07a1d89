@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const sidebarItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -38,7 +39,8 @@ const DashboardLayout = () => {
           </div>
           <span className="text-lg font-bold hidden sm:block">TravelHub</span>
         </Link>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <span className="text-sm text-muted-foreground hidden md:block">john@example.com</span>
           <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate("/")}>
             <LogOut className="w-4 h-4" />

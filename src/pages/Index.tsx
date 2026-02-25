@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import React from "react";
 import { useEffect, useState, useRef } from "react";
 import {
   ArrowRight, Star, MapPin, Shield, Headphones, BadgePercent,
@@ -130,18 +131,21 @@ const staggerChild = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-function StatCard({ value, suffix, label }: { value: number; suffix: string; label: string }) {
-  const { count, ref } = useCounter(value);
-  const display = value >= 1000 ? `${Math.floor(count / 1000)}K` : count;
-  return (
-    <div ref={ref} className="stat-card">
-      <div className="stat-number text-white">
-        {display}<span className="text-secondary">{suffix}</span>
+const StatCard = React.forwardRef<HTMLDivElement, { value: number; suffix: string; label: string }>(
+  ({ value, suffix, label }, _ref) => {
+    const { count, ref } = useCounter(value);
+    const display = value >= 1000 ? `${Math.floor(count / 1000)}K` : count;
+    return (
+      <div ref={ref} className="stat-card">
+        <div className="stat-number text-white">
+          {display}<span className="text-secondary">{suffix}</span>
+        </div>
+        <div className="text-white/60 text-xs sm:text-sm font-medium mt-1">{label}</div>
       </div>
-      <div className="text-white/60 text-xs sm:text-sm font-medium mt-1">{label}</div>
-    </div>
-  );
-}
+    );
+  }
+);
+StatCard.displayName = "StatCard";
 
 const Index = () => {
   return (

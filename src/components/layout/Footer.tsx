@@ -1,11 +1,12 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { Plane, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Twitter, ArrowRight, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const Footer = () => {
+const Footer = React.forwardRef<HTMLElement>((_, ref) => {
   return (
-    <footer className="bg-[hsl(224,30%,8%)] text-white">
+    <footer ref={ref} className="bg-[hsl(224,30%,8%)] text-white">
       {/* Newsletter */}
       <div className="border-b border-white/8">
         <div className="container mx-auto px-4 py-8 sm:py-10">
@@ -136,6 +137,7 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+Footer.displayName = "Footer";
 
 export default Footer;
