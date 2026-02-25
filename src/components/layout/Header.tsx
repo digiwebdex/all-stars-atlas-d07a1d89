@@ -9,6 +9,7 @@ import {
   Menu, User, Plane, Building2, FileText, Palmtree,
   ChevronDown, Phone, Globe, Headphones
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const mainNav = [
   { label: "Flight", href: "/flights", icon: Plane },
@@ -134,6 +135,7 @@ const Header = () => {
 
             {/* Right Side — desktop */}
             <div className="hidden lg:flex items-center gap-2.5">
+              <ThemeToggle className={transparent ? "text-white/80 hover:bg-white/10 hover:text-white" : ""} />
               <Button
                 variant="ghost"
                 size="sm"
@@ -187,6 +189,10 @@ const Header = () => {
                     ))}
                   </nav>
                   <div className="p-4 border-t border-border space-y-2.5">
+                    <div className="flex items-center justify-between px-1 mb-2">
+                      <span className="text-sm text-muted-foreground font-medium">Dark Mode</span>
+                      <ThemeToggle />
+                    </div>
                     <Button className="w-full h-11 font-bold" asChild>
                       <Link to="/auth/login" onClick={() => setMobileOpen(false)}>Login</Link>
                     </Button>

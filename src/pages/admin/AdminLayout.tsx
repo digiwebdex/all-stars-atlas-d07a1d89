@@ -6,6 +6,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const sidebarGroups = [
   {
@@ -90,7 +91,8 @@ const AdminLayout = () => {
           </div>
           <span className="text-sm font-bold">TravelHub Admin</span>
         </Link>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle className="text-background/60 hover:text-background hover:bg-background/10" />
           <span className="text-xs text-background/60 hidden sm:block">Super Admin</span>
           <Button variant="ghost" size="sm" className="text-background/60 hover:text-background" onClick={() => navigate("/")}>
             <LogOut className="w-4 h-4" />
