@@ -127,7 +127,7 @@ const DashboardTravellers = () => {
         </Dialog>
       </div>
 
-      <DataLoader isLoading={isLoading} error={null} skeleton="cards" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={error} skeleton="cards" retry={refetch}>
         {travellers.length === 0 ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">
             <User className="w-12 h-12 mx-auto mb-3 opacity-30" />

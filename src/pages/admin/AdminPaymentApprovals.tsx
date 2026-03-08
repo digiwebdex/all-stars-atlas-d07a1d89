@@ -141,7 +141,7 @@ const AdminPaymentApprovals = () => {
         <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} /></div>
       </div>
 
-      <DataLoader isLoading={isLoading} error={null} skeleton="table" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={error} skeleton="table" retry={refetch}>
         <Card><CardContent className="p-0 table-responsive">
           <Table>
             <TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Customer</TableHead><TableHead className="hidden md:table-cell">Method</TableHead><TableHead className="hidden md:table-cell">Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-28"></TableHead></TableRow></TableHeader>

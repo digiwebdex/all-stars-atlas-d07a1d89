@@ -75,7 +75,7 @@ const DashboardSettings = () => {
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold">Settings</h1>
 
-      <DataLoader isLoading={isLoading} error={null} skeleton="detail" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={error} skeleton="detail" retry={refetch}>
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">

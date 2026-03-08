@@ -193,7 +193,7 @@ const AdminInvoices = () => {
         </Select>
       </div>
 
-      <DataLoader isLoading={isLoading} error={null} skeleton="table" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={error} skeleton="table" retry={refetch}>
         <Card><CardContent className="p-0 table-responsive">
           <Table>
             <TableHeader><TableRow>
