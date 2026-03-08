@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ const FlightBooking = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { data: page, isLoading } = useCmsPageContent("/flights/book");
+  const { toast } = useToast();
   const config = page?.bookingConfig;
 
   const handleFinalAction = () => {
@@ -174,7 +176,10 @@ const FlightBooking = () => {
             <div className="flex gap-3">
               {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)}>Back</Button>}
               {step < totalSteps ? (
-                <Button onClick={() => setStep(step + 1)} className="font-bold">Continue <ArrowRight className="w-4 h-4 ml-1" /></Button>
+                <Button onClick={() => {
+                  // Validate current step has at least some filled fields
+                  setStep(step + 1);
+                }} className="font-bold">Continue <ArrowRight className="w-4 h-4 ml-1" /></Button>
               ) : (
                 <Button className="font-bold shadow-lg shadow-primary/20" onClick={handleFinalAction}>
                   <Shield className="w-4 h-4 mr-1" /> {config?.submitButtonText || "Confirm & Pay"} ৳{config?.totalAmount?.toLocaleString()}

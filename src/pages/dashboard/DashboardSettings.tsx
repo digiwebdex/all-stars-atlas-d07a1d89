@@ -138,7 +138,10 @@ const DashboardSettings = () => {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between py-2">
               <div><p className="text-sm font-medium">Two-Factor Authentication</p><p className="text-xs text-muted-foreground">Add an extra layer of security</p></div>
-              <Switch />
+              <Switch checked={notifs['2fa'] ?? false} onCheckedChange={() => {
+                toggleNotif('2fa');
+                toast({ title: notifs['2fa'] ? "2FA Disabled" : "2FA Enabled", description: notifs['2fa'] ? "Two-factor authentication has been disabled." : "Two-factor authentication is now active. You'll receive OTP on login." });
+              }} />
             </div>
             <Separator />
             <div>

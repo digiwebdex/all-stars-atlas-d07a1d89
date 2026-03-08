@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +10,22 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useHotelSearch } from "@/hooks/useApiData";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
 import DataLoader from "@/components/DataLoader";
+import { useToast } from "@/hooks/use-toast";
+
+const WISHLIST_KEY = "st_wishlist_hotels";
+const getWishlist = (): string[] => { try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); } catch { return []; } };
+const toggleWishlistItem = (id: string): boolean => {
+  const list = getWishlist();
+  const idx = list.indexOf(id);
+  if (idx >= 0) { list.splice(idx, 1); localStorage.setItem(WISHLIST_KEY, JSON.stringify(list)); return false; }
+  list.push(id); localStorage.setItem(WISHLIST_KEY, JSON.stringify(list)); return true;
+};
 
 const amenityIcons: Record<string, typeof Wifi> = { wifi: Wifi, pool: Waves, restaurant: UtensilsCrossed, parking: Car };
 
 const HotelResults = () => {
+  const { toast } = useToast();
+  const [wishlistedIds, setWishlistedIds] = useState<string[]>(getWishlist);
   const { data: page } = useCmsPageContent("/hotels");
   const listing = page?.listingConfig;
   const [searchParams] = useSearchParams();
@@ -115,8 +127,13 @@ const HotelResults = () => {
                         <div className={`relative overflow-hidden ${view === "list" ? "sm:w-72 h-48 sm:h-auto" : "aspect-[16/10]"}`}>
                           <img src={hotel.img} alt={hotel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                           {hotel.tag && <Badge className="absolute top-3 left-3 bg-secondary text-secondary-foreground text-[10px] font-bold shadow-lg">{hotel.tag}</Badge>}
-                          <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <Heart className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
+                          <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors" onClick={(e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            const added = toggleWishlistItem(String(hotel.id));
+                            setWishlistedIds(getWishlist());
+                            toast({ title: added ? "Added to Wishlist" : "Removed from Wishlist", description: added ? `${hotel.name} saved` : `${hotel.name} removed` });
+                          }}>
+                            <Heart className={`w-4 h-4 transition-colors ${wishlistedIds.includes(String(hotel.id)) ? "fill-destructive text-destructive" : "text-muted-foreground hover:text-destructive"}`} />
                           </button>
                         </div>
                         <CardContent className={`p-4 flex-1 ${view === "list" ? "flex flex-col justify-between" : ""}`}>
