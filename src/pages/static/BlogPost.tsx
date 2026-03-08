@@ -115,14 +115,14 @@ const BlogPost = () => {
           <span className="flex items-center gap-1.5"><User className="w-4 h-4" /> {post.author}</span>
           <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {post.date}</span>
           <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {post.readTime}</span>
-          {post.views > 0 && <span>{post.views.toLocaleString()} views</span>}
+          {(post as any).views > 0 && <span>{(post as any).views.toLocaleString()} views</span>}
         </div>
 
         {/* Tags */}
-        {post.tags?.length > 0 && (
+        {(post as any).tags?.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6">
             <Tag className="w-4 h-4 text-muted-foreground" />
-            {post.tags.map((tag: string) => (
+            {(post as any).tags.map((tag: string) => (
               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
             ))}
           </div>
