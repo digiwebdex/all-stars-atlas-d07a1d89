@@ -334,14 +334,14 @@ const AdminSettings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: "New Booking Alert", desc: "Get notified for every new booking" },
-            { label: "Payment Received", desc: "Alert when payment is received" },
-            { label: "Refund Request", desc: "Notify on refund requests" },
-            { label: "Low Inventory", desc: "Alert when availability is low" },
-          ].map((n, i) => (
-            <div key={i} className="flex items-center justify-between py-2">
+            { key: "newBooking", label: "New Booking Alert", desc: "Get notified for every new booking" },
+            { key: "paymentReceived", label: "Payment Received", desc: "Alert when payment is received" },
+            { key: "refundRequest", label: "Refund Request", desc: "Notify on refund requests" },
+            { key: "lowInventory", label: "Low Inventory", desc: "Alert when availability is low" },
+          ].map((n) => (
+            <div key={n.key} className="flex items-center justify-between py-2">
               <div><p className="text-sm font-medium">{n.label}</p><p className="text-xs text-muted-foreground">{n.desc}</p></div>
-              <Switch defaultChecked />
+              <Switch checked={notifications[n.key] !== false} onCheckedChange={() => toggleNotification(n.key)} />
             </div>
           ))}
         </CardContent>
