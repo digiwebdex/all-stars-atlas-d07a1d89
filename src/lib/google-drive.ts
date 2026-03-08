@@ -56,8 +56,9 @@ function getAccessToken(): Promise<string> {
       return;
     }
 
-    if (!GOOGLE_CLIENT_ID) {
-      reject(new Error('Google Client ID not configured. Add VITE_GOOGLE_CLIENT_ID to your environment.'));
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+      reject(new Error('Google Client ID not configured. Go to Admin → Settings → API Integrations → Google Drive to add your Client ID.'));
       return;
     }
 
