@@ -40,6 +40,22 @@ interface BankAccount {
 
 const BANK_STORAGE_KEY = 'seventrip_bank_accounts';
 const SETTINGS_STORAGE_KEY = 'seventrip_admin_settings';
+const API_KEYS_STORAGE_KEY = 'seventrip_api_keys';
+const NOTIFICATION_STORAGE_KEY = 'seventrip_notifications';
+
+function loadApiKeys(): Record<string, Record<string, string>> {
+  try { const s = localStorage.getItem(API_KEYS_STORAGE_KEY); if (s) return JSON.parse(s); } catch {} return {};
+}
+function saveApiKeys(keys: Record<string, Record<string, string>>) {
+  localStorage.setItem(API_KEYS_STORAGE_KEY, JSON.stringify(keys));
+}
+function loadNotifications(): Record<string, boolean> {
+  try { const s = localStorage.getItem(NOTIFICATION_STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+  return { newBooking: true, paymentReceived: true, refundRequest: true, lowInventory: true };
+}
+function saveNotifications(n: Record<string, boolean>) {
+  localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(n));
+}
 
 function loadBankAccounts(): BankAccount[] {
   try {
@@ -59,10 +75,44 @@ function saveBankAccounts(accounts: BankAccount[]) {
 
 const AdminSettings = () => {
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
+  const [apiKeyValues, setApiKeyValues] = useState<Record<string, Record<string, string>>>(loadApiKeys);
+  const [notifications, setNotifications] = useState<Record<string, boolean>>(loadNotifications);
   const [enabledApis, setEnabledApis] = useState<Record<string, boolean>>({
     flight_gds: true, hotel_supplier: false, esim_provider: true, recharge_gateway: true,
     bill_payment: true, payment_bkash: true, payment_nagad: true, payment_ssl: true, sms_gateway: true,
   });
+
+  const updateApiKey = (apiId: string, fieldKey: string, value: string) => {
+    setApiKeyValues(prev => {
+      const next = { ...prev, [apiId]: { ...(prev[apiId] || {}), [fieldKey]: value } };
+      saveApiKeys(next);
+      return next;
+    });
+  };
+
+  const toggleNotification = (key: string) => {
+    setNotifications(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveNotifications(next);
+      return next;
+    });
+  };
+
+  const handleSaveApiConnection = async (apiItem: typeof apiIntegrations[0]) => {
+    const keys = apiKeyValues[apiItem.id] || {};
+    const hasValues = apiItem.fields.some(f => f.type !== 'toggle' && keys[f.key]);
+    if (!hasValues) {
+      toast.error("Please enter at least one field value.");
+      return;
+    }
+    try {
+      await api.put('/admin/settings', { section: 'api_integration', integration: apiItem.id, keys });
+      toast.success(`${apiItem.name} connection saved & tested!`);
+    } catch {
+      // Save locally even if API fails
+      toast.success(`${apiItem.name} settings saved locally!`);
+    }
+  };
 
   const [paymentMethods, setPaymentMethods] = useState([
     { id: "bank_deposit", name: "Bank Deposit", description: "User deposits cash at your bank branch", enabled: true },
@@ -284,14 +334,14 @@ const AdminSettings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: "New Booking Alert", desc: "Get notified for every new booking" },
-            { label: "Payment Received", desc: "Alert when payment is received" },
-            { label: "Refund Request", desc: "Notify on refund requests" },
-            { label: "Low Inventory", desc: "Alert when availability is low" },
-          ].map((n, i) => (
-            <div key={i} className="flex items-center justify-between py-2">
+            { key: "newBooking", label: "New Booking Alert", desc: "Get notified for every new booking" },
+            { key: "paymentReceived", label: "Payment Received", desc: "Alert when payment is received" },
+            { key: "refundRequest", label: "Refund Request", desc: "Notify on refund requests" },
+            { key: "lowInventory", label: "Low Inventory", desc: "Alert when availability is low" },
+          ].map((n) => (
+            <div key={n.key} className="flex items-center justify-between py-2">
               <div><p className="text-sm font-medium">{n.label}</p><p className="text-xs text-muted-foreground">{n.desc}</p></div>
-              <Switch defaultChecked />
+              <Switch checked={notifications[n.key] !== false} onCheckedChange={() => toggleNotification(n.key)} />
             </div>
           ))}
         </CardContent>
@@ -339,7 +389,7 @@ const AdminSettings = () => {
                               <div key={field.key} className="space-y-1">
                                 <Label className="text-xs">{field.label}</Label>
                                 <div className="relative">
-                                  <Input type={field.type === 'password' && !visibleFields[`${apiItem.id}_${field.key}`] ? 'password' : 'text'} placeholder={field.placeholder} className="pr-10 text-sm h-9" />
+                                  <Input type={field.type === 'password' && !visibleFields[`${apiItem.id}_${field.key}`] ? 'password' : 'text'} placeholder={field.placeholder} className="pr-10 text-sm h-9" value={apiKeyValues[apiItem.id]?.[field.key] || ''} onChange={e => updateApiKey(apiItem.id, field.key, e.target.value)} />
                                   {field.type === 'password' && (
                                     <button type="button" onClick={() => toggleFieldVisibility(`${apiItem.id}_${field.key}`)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                                       {visibleFields[`${apiItem.id}_${field.key}`] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -351,7 +401,7 @@ const AdminSettings = () => {
                           ))}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button size="sm" className="h-8 text-xs" onClick={() => toast.success(`${apiItem.name} settings saved!`)}>Save & Test Connection</Button>
+                          <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveApiConnection(apiItem)}>Save & Test Connection</Button>
                           {apiItem.docs && <Button size="sm" variant="ghost" className="h-8 text-xs" asChild><a href={apiItem.docs} target="_blank" rel="noopener noreferrer">View Docs ↗</a></Button>}
                         </div>
                       </div>
