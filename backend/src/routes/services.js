@@ -203,7 +203,7 @@ router.get('/esim/plans', async (req, res) => {
     const data = rows.map(r => ({
       id: r.id, country: r.country, region: r.region, dataAmount: r.data_amount,
       duration: r.duration, price: parseFloat(r.price), currency: r.currency,
-      provider: r.provider, features: JSON.parse(r.features || '[]'),
+      provider: r.provider, features: safeJsonParse(r.features, []),
     }));
     res.json({ data, total: data.length, page: 1, limit: 50, totalPages: 1 });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
