@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Suspense, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, AnimatePresence } from "framer-motion";
+import DashboardBreadcrumb from "@/components/dashboard/DashboardBreadcrumb";
 
 // Using inline gradient styles since Tailwind can't generate dynamic classes
 const sidebarGroups = [
