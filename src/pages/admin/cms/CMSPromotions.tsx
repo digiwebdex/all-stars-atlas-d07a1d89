@@ -31,7 +31,7 @@ const CMSPromotions = () => {
   const openNew = () => { setEditingPromo(null); setForm(emptyPromo); setShowDialog(true); };
   const openEdit = (p: any) => {
     setEditingPromo(p);
-    setForm({ title: p.title, code: p.code, discount: p.discount, type: p.type || "percentage", used: p.used || 0, usageLimit: p.usageLimit || 100, status: p.status, expires: p.expires || "" });
+    setForm({ title: p.title, code: p.code, discount: p.discount, type: p.type || "percentage", used: p.used || 0, usageLimit: p.usageLimit || 100, status: p.status, expires: p.expires || "", description: p.description || "" });
     setShowDialog(true);
   };
 
