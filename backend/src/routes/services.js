@@ -290,6 +290,9 @@ router.post('/contact/submit', async (req, res) => {
       `INSERT INTO contact_submissions (id, name, email, subject, message) VALUES (?, ?, ?, ?, ?)`,
       [id, name, email, subject || '', message]
     );
+    // Auto-reply email + notify admin
+    notifyContactSubmission(name, email).catch(console.error);
+
     res.status(201).json({ id, message: "Thank you! We'll get back to you within 24 hours." });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
 });
