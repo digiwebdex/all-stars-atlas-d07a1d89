@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ArrowUpRight, ArrowDownLeft, Download, Filter } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 import { useState } from "react";
 import { useDashboardTransactions } from "@/hooks/useApiData";
 import DataLoader from "@/components/DataLoader";
