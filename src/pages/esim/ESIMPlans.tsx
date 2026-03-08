@@ -62,7 +62,7 @@ const ESIMPlans = () => {
                     <CardContent className="p-5 text-center space-y-3">
                       {i === (country.plans?.length || 0) - 1 && <Badge className="bg-primary text-primary-foreground">Best Value</Badge>}
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto"><Signal className="w-6 h-6 text-primary" /></div>
-                      <h3 className="text-2xl font-black">{plan.data}</h3>
+                      <h3 className="text-2xl font-black">{plan.dataAmount || plan.data}</h3>
                       <p className="text-sm text-muted-foreground">{plan.duration}</p>
                       <div className="space-y-1 text-xs text-muted-foreground">
                         <div className="flex items-center justify-center gap-1"><Check className="w-3 h-3 text-success" /> 4G/5G Data</div>
