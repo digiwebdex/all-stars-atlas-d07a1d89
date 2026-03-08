@@ -2,10 +2,36 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const db = require('../config/db');
 const { generateTokens, formatUser, authenticate } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Multer for ID document uploads
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads');
+const ID_DOCS_DIR = path.join(UPLOAD_DIR, 'id-documents');
+if (!fs.existsSync(ID_DOCS_DIR)) fs.mkdirSync(ID_DOCS_DIR, { recursive: true });
+
+const idStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, ID_DOCS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.user.sub}-${Date.now()}${ext}`);
+  },
+});
+const idUpload = multer({
+  storage: idStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error(`File type ${ext} not allowed`));
+  },
+});
 
 // POST /auth/register
 router.post('/register', async (req, res) => {
@@ -222,6 +248,27 @@ router.post('/logout', authenticate, async (req, res) => {
     res.json({ message: 'Logged out' });
   } catch (err) {
     res.status(500).json({ message: 'Something went wrong', status: 500 });
+  }
+});
+
+// POST /auth/upload-id-document — upload NID/Passport after registration
+router.post('/upload-id-document', authenticate, idUpload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded', status: 400 });
+    }
+    const documentType = req.body.documentType || 'nid';
+    const docPath = `/uploads/id-documents/${req.file.filename}`;
+
+    await db.query(
+      'UPDATE users SET id_document_path = ?, id_document_type = ?, id_verified = FALSE WHERE id = ?',
+      [docPath, documentType, req.user.sub]
+    );
+
+    res.json({ message: 'ID document uploaded successfully', path: docPath, type: documentType });
+  } catch (err) {
+    console.error('ID upload error:', err);
+    res.status(500).json({ message: 'Upload failed', status: 500 });
   }
 });
 

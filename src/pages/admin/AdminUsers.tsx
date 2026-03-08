@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MoreHorizontal, Eye, Ban, CheckCircle2, UserPlus, Download, Loader2, Users, UserCheck, UserX, UserCog } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Ban, CheckCircle2, UserPlus, Download, Loader2, Users, UserCheck, UserX, UserCog, FileText, ExternalLink, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/useApiData";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import DataLoader from "@/components/DataLoader";
 import { mockAdminUsers } from "@/lib/mock-data";
 import { downloadCSV } from "@/lib/csv-export";
+import { config } from "@/lib/config";
 
 const AdminUsers = () => {
   const [search, setSearch] = useState("");
@@ -32,6 +33,7 @@ const AdminUsers = () => {
     id: u.id, name: u.name, email: u.email, phone: u.phone || "—",
     role: u.role || "customer", status: u.status || "active",
     bookings: u.bookings || 0, joined: u.joined || "—",
+    idDocument: u.idDocument || null, idDocType: u.idDocType || null, idVerified: u.idVerified || false,
   })) || [];
 
   const apiStats = (data as any)?.stats;
@@ -136,16 +138,30 @@ const AdminUsers = () => {
       <DataLoader isLoading={isLoading} error={null} skeleton="table" retry={refetch}>
         <Card><CardContent className="p-0 table-responsive">
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="hidden md:table-cell">Phone</TableHead><TableHead className="hidden lg:table-cell">Joined</TableHead><TableHead className="hidden sm:table-cell">Bookings</TableHead><TableHead>Status</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="hidden md:table-cell">Phone</TableHead><TableHead className="hidden lg:table-cell">Joined</TableHead><TableHead className="hidden sm:table-cell">Bookings</TableHead><TableHead>ID Status</TableHead><TableHead>Status</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">No users found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">No users found</TableCell></TableRow>
               ) : filtered.map((u: any) => (
                 <TableRow key={u.id}>
-                  <TableCell><p className="text-sm font-medium">{u.name}</p><p className="text-xs text-muted-foreground">{u.email}</p></TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm font-medium">{u.name}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </div>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell text-sm">{u.phone}</TableCell>
                   <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{u.joined}</TableCell>
                   <TableCell className="hidden sm:table-cell text-sm">{u.bookings}</TableCell>
+                  <TableCell>
+                    {u.idDocument ? (
+                      u.idVerified
+                        ? <Badge className="bg-success/10 text-success text-[10px]"><CheckCircle2 className="w-3 h-3 mr-0.5" /> Verified</Badge>
+                        : <Badge className="bg-warning/10 text-warning text-[10px]"><FileText className="w-3 h-3 mr-0.5" /> Pending</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">No ID</Badge>
+                    )}
+                  </TableCell>
                   <TableCell><Badge variant="outline" className={`text-[11px] capitalize ${u.status === "active" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>{u.status}</Badge></TableCell>
                   <TableCell>
                     <DropdownMenu modal={false}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
@@ -167,7 +183,7 @@ const AdminUsers = () => {
 
       {/* View User */}
       <Dialog open={!!showViewUser} onOpenChange={() => setShowViewUser(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>User Profile</DialogTitle></DialogHeader>
           {showViewUser && (
             <div className="space-y-4 py-2">
@@ -179,6 +195,39 @@ const AdminUsers = () => {
                 <div><p className="text-xs text-muted-foreground">Status</p><Badge variant="outline" className={`text-[11px] capitalize ${showViewUser.status === "active" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>{showViewUser.status}</Badge></div>
                 <div><p className="text-xs text-muted-foreground">Bookings</p><p className="font-semibold">{showViewUser.bookings}</p></div>
                 <div><p className="text-xs text-muted-foreground">Joined</p><p className="font-semibold">{showViewUser.joined}</p></div>
+              </div>
+
+              {/* ID Document Section */}
+              <div className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" /> Identity Document
+                  </p>
+                  {showViewUser.idVerified ? (
+                    <Badge className="bg-success/10 text-success text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" /> Verified</Badge>
+                  ) : showViewUser.idDocument ? (
+                    <Badge className="bg-warning/10 text-warning text-[10px]">Pending Review</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">Not Uploaded</Badge>
+                  )}
+                </div>
+                {showViewUser.idDocument ? (
+                  <div className="flex items-center gap-3 bg-muted/50 rounded-lg p-2">
+                    <FileText className="w-8 h-8 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{showViewUser.idDocType === "passport" ? "Passport Copy" : "National ID (NID)"}</p>
+                      <p className="text-[10px] text-muted-foreground">Uploaded with registration</p>
+                    </div>
+                    <a href={`${config.apiBaseUrl}${showViewUser.idDocument}`} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="h-7 text-xs"><ExternalLink className="w-3 h-3 mr-1" /> View</Button>
+                    </a>
+                    <a href={`${config.apiBaseUrl}${showViewUser.idDocument}`} download>
+                      <Button variant="outline" size="sm" className="h-7 text-xs"><Download className="w-3 h-3 mr-1" /> Download</Button>
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No identity document uploaded by this user.</p>
+                )}
               </div>
             </div>
           )}
