@@ -174,6 +174,32 @@ All notable changes to this project are documented in this file.
 
 ---
 
+---
+
+## [1.5.0] — 2026-03-08
+
+### 🏆 World-Class UX & Production Hardening
+
+#### UX Enhancements — Homepage
+- **Parallax hero** — Background shifts with scroll using spring physics (Framer Motion `useScroll` + `useTransform` + `useSpring`)
+- **Hero content fades** — Text and search widget fade out as user scrolls past
+- **Badge shine animation** — Trust badge in hero has continuous sweeping shine effect
+- **Smoother stagger** — All section entrances use spring easing (0.22, 1, 0.36, 1) with 0.07s stagger
+- **Spotlight hover** — Destination cards have cursor-following light effect
+
+#### UX Enhancements — Global CSS (15+ new utilities)
+- `card-reveal` (animated gradient border), `spotlight` (cursor light), `btn-elastic` (spring press), `badge-shine` (sweeping gloss), `input-glass` (glassmorphic inputs), `marquee` (auto-scroll), `wave-divider`, `typing-cursor`, `count-reveal`, `scroll-snap-x`, `accordion-spring`, `cta-glow`, `depth-1/2/3`
+
+#### Bug Fixes
+- **Header** — Fixed invalid Tailwind class `bg-primary/8` → `bg-primary/10`
+- **Dashboard Layout** — Replaced hardcoded `john@example.com` with actual user email
+- **Footer** — Converted `document.querySelector` to React `useRef`
+- **Hotel/Holiday/Medical** — Wishlist heart buttons now toggle with localStorage persistence
+- **Dashboard Settings** — 2FA toggle wired with localStorage + toast feedback
+- **Flight Booking** — Added toast import for validation readiness
+
+---
+
 ## Production Readiness Checklist ✅
 
 | Area | Status | Details |
