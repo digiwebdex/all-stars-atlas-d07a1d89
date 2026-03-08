@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
+import { getPrefetchHandlers } from "@/lib/prefetch";
 
 const mainNav = [
   { label: "Flight", href: "/flights", icon: Plane },
