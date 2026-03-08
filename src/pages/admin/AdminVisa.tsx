@@ -318,7 +318,7 @@ const AdminVisa = () => {
                       <TableCell className="text-sm">{c.processing}</TableCell>
                       <TableCell className="text-sm font-semibold">{c.fee}</TableCell>
                       <TableCell><Badge variant="outline" className={`text-[10px] capitalize ${c.status === "active" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{c.status}</Badge></TableCell>
-                      <TableCell><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toast({ title: "Edit Country", description: `Editing ${c.country} settings` })}><Edit2 className="w-4 h-4" /></Button></TableCell>
+                      <TableCell><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setTab("form-settings"); toast({ title: "Edit Country", description: `Switch to Form Settings to edit ${c.country}` }); }}><Edit2 className="w-4 h-4" /></Button></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
