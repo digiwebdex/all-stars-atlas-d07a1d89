@@ -29,8 +29,8 @@ router.get('/holidays/search', async (req, res) => {
     const data = rows.map(r => ({
       id: r.id, title: r.title, destination: r.destination, country: r.country,
       duration: r.duration, price: parseFloat(r.price), currency: r.currency,
-      discountPct: r.discount_pct, images: JSON.parse(r.images || '[]'),
-      highlights: JSON.parse(r.highlights || '[]'), category: r.category,
+      discountPct: r.discount_pct, images: safeJsonParse(r.images, []),
+      highlights: safeJsonParse(r.highlights, []), category: r.category,
       rating: r.rating ? parseFloat(r.rating) : null, reviewCount: r.review_count,
     }));
     res.json({ data, total: countResult[0].total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(countResult[0].total / parseInt(limit)) });
