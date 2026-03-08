@@ -69,7 +69,7 @@ function getAccessToken(): Promise<string> {
     }
 
     tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
+      client_id: clientId,
       scope: 'https://www.googleapis.com/auth/drive.file',
       callback: (response: any) => {
         if (response.error) {
