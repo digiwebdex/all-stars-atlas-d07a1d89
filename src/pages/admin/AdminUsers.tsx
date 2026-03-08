@@ -242,6 +242,19 @@ const AdminUsers = () => {
                 ) : (
                   <p className="text-xs text-muted-foreground">No identity document uploaded by this user.</p>
                 )}
+                {showViewUser.idDocument && !showViewUser.idVerified && (
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" className="bg-success hover:bg-success/90 text-white" onClick={() => { handleVerifyId(showViewUser, true); setShowViewUser(null); }} disabled={actionLoading}>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Verify ID
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => { handleVerifyId(showViewUser, false); setShowViewUser(null); }} disabled={actionLoading}>
+                      <Ban className="w-3.5 h-3.5 mr-1" /> Reject ID
+                    </Button>
+                  </div>
+                )}
+                {showViewUser.idVerified && (
+                  <p className="text-xs text-success font-medium flex items-center gap-1 pt-1"><CheckCircle2 className="w-3 h-3" /> This user's identity has been verified by an admin.</p>
+                )}
               </div>
             </div>
           )}
