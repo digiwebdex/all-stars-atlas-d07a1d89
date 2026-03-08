@@ -7,7 +7,7 @@ import { Ticket, Download, Plane, Search, Eye, Printer, Calendar, Users } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { mockTickets } from "@/lib/mock-data";
-import { generateTicketPDF } from "@/lib/pdf-generator";
+import { generateTicketPDF, printTicketPDF } from "@/lib/pdf-generator";
 
 const statusColors: Record<string, string> = {
   active: "bg-success/10 text-success",
