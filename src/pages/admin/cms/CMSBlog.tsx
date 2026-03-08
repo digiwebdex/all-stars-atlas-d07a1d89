@@ -263,7 +263,7 @@ const CMSBlog = () => {
 
   const handleDuplicate = (post: any) => {
     const dup = { ...post, id: `post-${Date.now()}`, title: `${post.title} (Copy)`, status: "draft", views: 0, slug: `${post.slug}-copy` };
-    const updated = addToCollection(STORE_KEY, BLOG_POSTS.map(p => ({ ...p, id: String(p.id), content: "", tags: [] as string[], seoTitle: "", seoDescription: "", seoKeywords: "", slug: slugify(p.title), featured: false, allowComments: true })), dup);
+    const updated = addToCollection(STORE_KEY, defaultPosts(), dup as any) as BlogPost[];
     setPosts([...updated]);
     toast({ title: "Duplicated", description: `Copy of "${post.title}" created as draft.` });
   };
