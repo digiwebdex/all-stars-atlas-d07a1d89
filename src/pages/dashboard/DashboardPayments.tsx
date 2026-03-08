@@ -47,12 +47,12 @@ const DashboardPayments = () => {
   const submitPayment = useSubmitPayment();
   const { toast } = useToast();
 
-  const paymentHistory = (data as any)?.paymentHistory || [];
-  // Bank accounts configured by admin
-  const bankAccounts = (data as any)?.bankAccounts || [];
-  // Payment methods enabled by admin
-  const enabledMethodIds: string[] = (data as any)?.enabledPaymentMethods || allPaymentMethods.map(m => m.id);
+  const resolved = error ? mockPayments : (data as any);
+  const paymentHistory = resolved?.payments || resolved?.paymentHistory || [];
+  const bankAccounts = resolved?.bankAccounts || [];
+  const enabledMethodIds: string[] = resolved?.enabledPaymentMethods || allPaymentMethods.map(m => m.id);
   const availableMethods = allPaymentMethods.filter(m => enabledMethodIds.includes(m.id));
+  const effectiveError = error && paymentHistory.length === 0 ? error : null;
 
   // Auto-select first available method
   const activeMethod = paymentMethod && enabledMethodIds.includes(paymentMethod) ? paymentMethod : (availableMethods[0]?.id || "");
