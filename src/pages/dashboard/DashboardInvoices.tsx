@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { mockInvoices } from "@/lib/mock-data";
-import { generateInvoicePDF } from "@/lib/pdf-generator";
+import { generateInvoicePDF, printInvoicePDF } from "@/lib/pdf-generator";
 
 const statusColors: Record<string, string> = {
   Paid: "bg-success/10 text-success",
