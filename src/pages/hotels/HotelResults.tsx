@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,16 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useHotelSearch } from "@/hooks/useApiData";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
 import DataLoader from "@/components/DataLoader";
+import { useToast } from "@/hooks/use-toast";
+
+const WISHLIST_KEY = "st_wishlist_hotels";
+const getWishlist = (): string[] => { try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); } catch { return []; } };
+const toggleWishlistItem = (id: string): boolean => {
+  const list = getWishlist();
+  const idx = list.indexOf(id);
+  if (idx >= 0) { list.splice(idx, 1); localStorage.setItem(WISHLIST_KEY, JSON.stringify(list)); return false; }
+  list.push(id); localStorage.setItem(WISHLIST_KEY, JSON.stringify(list)); return true;
+};
 
 const amenityIcons: Record<string, typeof Wifi> = { wifi: Wifi, pool: Waves, restaurant: UtensilsCrossed, parking: Car };
 
