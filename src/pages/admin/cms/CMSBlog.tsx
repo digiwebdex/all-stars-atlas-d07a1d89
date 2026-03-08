@@ -98,17 +98,38 @@ const ToolbarSep = () => <div className="w-px h-6 bg-border mx-1" />;
 const VisualEditor = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isInternalChange = useRef(false);
+
+  // Sync external value changes (e.g., from HTML tab) into the contentEditable div
+  // but skip if the change originated from typing inside the editor itself
+  const lastExternalValue = useRef(value);
+  if (value !== lastExternalValue.current && !isInternalChange.current) {
+    lastExternalValue.current = value;
+    // Schedule the DOM update after render
+    setTimeout(() => {
+      if (editorRef.current && editorRef.current.innerHTML !== value) {
+        editorRef.current.innerHTML = value;
+      }
+    }, 0);
+  }
+  isInternalChange.current = false;
 
   const exec = useCallback((cmd: string, val?: string) => {
+    editorRef.current?.focus();
     document.execCommand(cmd, false, val);
     if (editorRef.current) {
+      isInternalChange.current = true;
+      lastExternalValue.current = editorRef.current.innerHTML;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
 
   const insertBlock = useCallback((html: string) => {
+    editorRef.current?.focus();
     document.execCommand('insertHTML', false, html);
     if (editorRef.current) {
+      isInternalChange.current = true;
+      lastExternalValue.current = editorRef.current.innerHTML;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
@@ -175,13 +196,32 @@ const VisualEditor = ({ value, onChange }: { value: string; onChange: (v: string
       </div>
       {/* Editor Area */}
       <div
-        ref={editorRef}
+        ref={(el) => {
+          (editorRef as any).current = el;
+          // Set initial content once on mount
+          if (el && !el.dataset.initialized) {
+            el.innerHTML = value;
+            el.dataset.initialized = 'true';
+          }
+        }}
         contentEditable
         suppressContentEditableWarning
         className={`prose prose-sm dark:prose-invert max-w-none px-6 py-4 focus:outline-none ${isFullscreen ? 'h-[calc(100vh-52px)] overflow-y-auto' : 'min-h-[400px] max-h-[600px] overflow-y-auto'}`}
-        dangerouslySetInnerHTML={{ __html: value }}
         onInput={() => {
-          if (editorRef.current) onChange(editorRef.current.innerHTML);
+          if (editorRef.current) {
+            isInternalChange.current = true;
+            lastExternalValue.current = editorRef.current.innerHTML;
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        onPaste={() => {
+          setTimeout(() => {
+            if (editorRef.current) {
+              isInternalChange.current = true;
+              lastExternalValue.current = editorRef.current.innerHTML;
+              onChange(editorRef.current.innerHTML);
+            }
+          }, 0);
         }}
         style={{ fontSize: '16px', lineHeight: '1.75' }}
       />
