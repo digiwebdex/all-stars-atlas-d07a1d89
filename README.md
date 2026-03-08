@@ -63,7 +63,8 @@
 │   │   ├── airports.ts       # 740+ airport database
 │   │   ├── config.ts         # App configuration
 │   │   ├── constants.ts      # API endpoints, enums
-│   │   ├── mock-data.ts      # Fallback mock data
+│   │   ├── keep-alive.ts    # Server warm-up on first visit
+│   │   ├── prefetch.ts      # Route prefetching on hover
 │   │   ├── pdf-generator.ts  # E-ticket PDF generation
 │   │   └── cms-defaults.ts   # CMS page defaults
 │   └── pages/                # Route pages
