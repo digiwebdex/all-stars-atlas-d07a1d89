@@ -31,7 +31,7 @@ const DashboardWishlist = () => {
     <div className="space-y-6">
       <div><h1 className="text-xl sm:text-2xl font-bold">My Wishlist</h1><p className="text-sm text-muted-foreground">{items.length} saved items</p></div>
 
-      <DataLoader isLoading={isLoading} error={error} skeleton="cards" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={null} skeleton="cards" retry={refetch}>
         {items.length === 0 ? (
           <Card><CardContent className="py-16 text-center">
             <Heart className="w-14 h-14 mx-auto mb-4 text-muted-foreground/30" />

@@ -62,7 +62,7 @@ const DashboardInvoices = () => {
         </Select>
       </div>
 
-      <DataLoader isLoading={isLoading} error={error} skeleton="table" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={effectiveError} skeleton="table" retry={refetch}>
         <Card>
           <CardContent className="p-0 table-responsive">
             <Table>

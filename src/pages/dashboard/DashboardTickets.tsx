@@ -34,7 +34,7 @@ const DashboardTickets = () => {
         <Input placeholder="Search by PNR, ticket ID or name..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      <DataLoader isLoading={isLoading} error={error} skeleton="cards" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={null} skeleton="cards" retry={refetch}>
         <div className="space-y-4">
           {tickets.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground"><Ticket className="w-12 h-12 mx-auto mb-3 opacity-30" /><p className="font-semibold">No tickets found</p></CardContent></Card>
