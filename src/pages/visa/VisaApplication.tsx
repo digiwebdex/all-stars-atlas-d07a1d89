@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { config } from "@/lib/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +11,21 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Globe, FileText, Upload, CheckCircle2, ArrowRight, Shield, User, Clock, Phone, MapPin, Briefcase, Heart, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Globe, FileText, Upload, CheckCircle2, ArrowRight, Shield, User, Clock, Phone, MapPin, Briefcase, Heart, AlertTriangle, X, Loader2, File } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import AuthGateModal from "@/components/AuthGateModal";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
+
+interface UploadedDoc {
+  filename: string;
+  originalName: string;
+  size: number;
+  mimetype: string;
+  url: string;
+  label: string;
+}
 
 const VisaApplication = () => {
   const [searchParams] = useSearchParams();
@@ -24,7 +35,7 @@ const VisaApplication = () => {
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const { data: page, isLoading } = useCmsPageContent("/visa/apply");
-  const config = page?.visaConfig;
+  const visaConfig = page?.visaConfig;
 
   const [step, setStep] = useState(1);
   const [selectedCountry, setSelectedCountry] = useState(searchParams.get("country")?.toLowerCase() || "thailand");
@@ -33,41 +44,84 @@ const VisaApplication = () => {
   const [travellers, setTravellers] = useState(1);
   const [agreed, setAgreed] = useState(false);
 
-  // All form data in one state object
+  // Document uploads
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // All form data
   const [form, setForm] = useState({
-    // Personal Info
     firstName: "", lastName: "", dob: "", gender: "", nationality: "Bangladeshi",
     nidNumber: "", tinNumber: "",
-    // Passport
     passportNumber: "", passportExpiry: "", passportIssueDate: "", passportIssuePlace: "",
-    // Contact
     email: "", phone: "", altPhone: "",
     currentAddress: "", permanentAddress: "",
-    // Professional
     occupation: "", employer: "", monthlyIncome: "",
-    // Family
     fatherName: "", motherName: "", spouseName: "",
-    // Emergency
     emergencyContact: "", emergencyPhone: "", emergencyRelation: "",
-    // Travel
     travelDate: "", returnDate: "", previousVisits: "", purposeOfVisit: "",
     hotelName: "", hotelAddress: "",
-    // Notes
     notes: "",
   });
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const countries = useMemo(() => config?.countries?.filter((c: any) => c.active) || [], [config]);
+  const countries = useMemo(() => visaConfig?.countries?.filter((c: any) => c.active) || [], [visaConfig]);
   const country = useMemo(() => countries.find((c: any) => c.code === selectedCountry), [countries, selectedCountry]);
   const processingOption = useMemo(() => country?.processingOptions.find((p: any) => p.label.toLowerCase() === processingType), [country, processingType]);
-  const steps = config?.formSteps || [{ label: "Visa Details" }, { label: "Personal Info" }, { label: "Documents" }, { label: "Review" }];
+  const steps = visaConfig?.formSteps || [{ label: "Visa Details" }, { label: "Personal Info" }, { label: "Documents" }, { label: "Review" }];
 
   const baseFee = country?.baseFee || 0;
   const serviceFee = country?.serviceFee || 0;
   const expressExtra = processingOption?.extraFee || 0;
   const totalPerPerson = baseFee + serviceFee + expressExtra;
   const grandTotal = totalPerPerson * travellers;
+
+  // File upload handler
+  const handleFileUpload = async (docLabel: string, file: globalThis.File) => {
+    setUploading(prev => ({ ...prev, [docLabel]: true }));
+    try {
+      const formData = new FormData();
+      formData.append('documents', file);
+
+      const apiBase = config.apiBaseUrl;
+      const token = localStorage.getItem('auth_token');
+
+      const response = await fetch(`${apiBase}/visa/upload-documents`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+      const result = await response.json();
+
+      if (result.files && result.files.length > 0) {
+        const uploaded = result.files[0];
+        setUploadedDocs(prev => [
+          ...prev.filter(d => d.label !== docLabel),
+          { ...uploaded, label: docLabel },
+        ]);
+        toast({ title: "Uploaded", description: `${docLabel} uploaded successfully.` });
+      }
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err?.message || "Could not upload file.", variant: "destructive" });
+    } finally {
+      setUploading(prev => ({ ...prev, [docLabel]: false }));
+    }
+  };
+
+  const removeDoc = (docLabel: string) => {
+    setUploadedDocs(prev => prev.filter(d => d.label !== docLabel));
+  };
+
+  const getDocForLabel = (label: string) => uploadedDocs.find(d => d.label === label);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   if (isLoading) {
     return (
@@ -165,10 +219,9 @@ const VisaApplication = () => {
               </Card>
             )}
 
-            {/* Step 2: Personal Info - COMPREHENSIVE */}
+            {/* Step 2: Personal Info */}
             {step === 2 && (
               <div className="space-y-5">
-                {/* Personal Details */}
                 <Card>
                   <CardHeader><CardTitle className="text-lg flex items-center gap-2"><User className="w-5 h-5 text-primary" /> Personal Details</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -196,7 +249,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Passport Details */}
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Passport Information</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -211,7 +263,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Contact */}
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> Contact Information</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -225,7 +276,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Professional */}
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Briefcase className="w-4 h-4 text-primary" /> Professional Details</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -237,7 +287,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Family */}
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> Family Details</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -249,7 +298,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Emergency Contact */}
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> Emergency Contact</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -261,7 +309,6 @@ const VisaApplication = () => {
                   </CardContent>
                 </Card>
 
-                {/* Additional Notes */}
                 <Card>
                   <CardContent className="pt-6">
                     <div className="space-y-1.5"><Label>Additional Notes / Special Requirements</Label><Textarea placeholder="Any additional information you'd like us to know..." rows={3} value={form.notes} onChange={e => updateForm("notes", e.target.value)} /></div>
@@ -270,25 +317,85 @@ const VisaApplication = () => {
               </div>
             )}
 
-            {/* Step 3: Documents */}
+            {/* Step 3: Documents — REAL UPLOAD */}
             {step === 3 && (
               <Card>
                 <CardHeader><CardTitle className="text-lg flex items-center gap-2"><FileText className="w-5 h-5 text-primary" /> Required Documents</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-4 bg-primary/5 rounded-xl mb-4">
-                    <p className="text-xs text-muted-foreground">Upload all required documents in JPG, PNG, or PDF format. Max 5MB each.</p>
+                    <p className="text-xs text-muted-foreground">Upload all required documents in JPG, PNG, PDF, DOC format. Max 10MB each.</p>
                   </div>
-                  {(country?.requiredDocs || []).map((doc: string, i: number) => (
-                    <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border">
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-                        {doc}
+                  {(country?.requiredDocs || []).map((doc: string, i: number) => {
+                    const uploaded = getDocForLabel(doc);
+                    const isUploading = uploading[doc];
+                    return (
+                      <div key={i} className="rounded-lg border border-border overflow-hidden">
+                        <div className="flex items-center justify-between gap-3 p-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {uploaded ? (
+                              <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                            ) : (
+                              <File className="w-5 h-5 text-muted-foreground shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{doc}</p>
+                              {uploaded && (
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  {uploaded.originalName} ({formatFileSize(uploaded.size)})
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {uploaded && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeDoc(doc)}>
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                              className="hidden"
+                              ref={el => { fileInputRefs.current[doc] = el; }}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(doc, file);
+                                e.target.value = '';
+                              }}
+                            />
+                            <Button
+                              variant={uploaded ? "outline" : "default"}
+                              size="sm"
+                              className="shrink-0"
+                              disabled={isUploading}
+                              onClick={() => fileInputRefs.current[doc]?.click()}
+                            >
+                              {isUploading ? (
+                                <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Uploading...</>
+                              ) : uploaded ? (
+                                <><Upload className="w-3.5 h-3.5 mr-1" /> Replace</>
+                              ) : (
+                                <><Upload className="w-3.5 h-3.5 mr-1" /> Upload</>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        {uploaded && uploaded.mimetype?.startsWith('image/') && (
+                          <div className="px-3 pb-3">
+                            <img src={`${config.apiBaseUrl.replace('/api', '')}${uploaded.url}`} alt={doc} className="h-16 rounded border border-border object-cover" />
+                          </div>
+                        )}
                       </div>
-                      <Button variant="outline" size="sm" className="shrink-0">
-                        <Upload className="w-3.5 h-3.5 mr-1" /> Upload
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  <div className="flex items-center gap-2 pt-2">
+                    <Badge variant="outline" className="text-xs">
+                      {uploadedDocs.length} / {(country?.requiredDocs || []).length} uploaded
+                    </Badge>
+                    {uploadedDocs.length === (country?.requiredDocs || []).length && (
+                      <Badge className="text-xs bg-success/10 text-success border-success/30">All documents uploaded ✓</Badge>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -303,7 +410,6 @@ const VisaApplication = () => {
                       <p className="text-sm font-medium text-success flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Please review all information before submitting.</p>
                     </div>
 
-                    {/* Visa Details Summary */}
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Visa & Travel</p>
                       <div className="space-y-1.5 text-sm">
@@ -317,7 +423,6 @@ const VisaApplication = () => {
                     </div>
                     <Separator />
 
-                    {/* Personal Summary */}
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Personal Information</p>
                       <div className="space-y-1.5 text-sm">
@@ -331,12 +436,24 @@ const VisaApplication = () => {
                     </div>
                     <Separator />
 
-                    {/* Emergency */}
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Emergency Contact</p>
                       <div className="space-y-1.5 text-sm">
                         <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-semibold">{form.emergencyContact || "—"} ({form.emergencyRelation || "—"})</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-semibold">{form.emergencyPhone || "—"}</span></div>
+                      </div>
+                    </div>
+                    <Separator />
+
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Documents ({uploadedDocs.length} uploaded)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {uploadedDocs.map((doc, i) => (
+                          <Badge key={i} className="bg-success/10 text-success border-success/30 text-xs">{doc.label} ✓</Badge>
+                        ))}
+                        {(country?.requiredDocs || []).filter((d: string) => !getDocForLabel(d)).map((d: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs text-warning border-warning/30">{d} — missing</Badge>
+                        ))}
                       </div>
                     </div>
 
@@ -367,6 +484,14 @@ const VisaApplication = () => {
                       country: country?.name || selectedCountry,
                       visaType: selectedType,
                       processingFee: grandTotal,
+                      documents: uploadedDocs.map(d => ({
+                        filename: d.filename,
+                        originalName: d.originalName,
+                        size: d.size,
+                        mimetype: d.mimetype,
+                        label: d.label,
+                        url: d.url,
+                      })),
                       applicantInfo: {
                         ...form,
                         selectedCountry,
@@ -408,7 +533,7 @@ const VisaApplication = () => {
                 <Separator />
                 <div className="flex justify-between text-base"><span className="font-bold">Total</span><span className="font-black text-primary">৳{grandTotal.toLocaleString()}</span></div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
-                  <Clock className="w-3.5 h-3.5" /> {processingOption?.days ? `Estimated processing: ${processingOption.days}` : config?.estimatedProcessingNote}
+                  <Clock className="w-3.5 h-3.5" /> {processingOption?.days ? `Estimated processing: ${processingOption.days}` : visaConfig?.estimatedProcessingNote}
                 </div>
                 {form.firstName && (
                   <>
@@ -417,6 +542,17 @@ const VisaApplication = () => {
                       <p className="font-semibold text-foreground">{form.firstName} {form.lastName}</p>
                       {form.passportNumber && <p>Passport: {form.passportNumber}</p>}
                       {form.phone && <p>{form.phone}</p>}
+                    </div>
+                  </>
+                )}
+                {uploadedDocs.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="text-xs">
+                      <p className="text-muted-foreground font-semibold mb-1">Documents: {uploadedDocs.length} uploaded</p>
+                      {uploadedDocs.map((d, i) => (
+                        <p key={i} className="text-muted-foreground truncate">✓ {d.label}</p>
+                      ))}
                     </div>
                   </>
                 )}

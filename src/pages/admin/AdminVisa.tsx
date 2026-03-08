@@ -8,18 +8,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Edit2, Eye, Globe, CheckCircle2, XCircle, Save, Trash2, GripVertical, User, Phone, MapPin, Briefcase, Heart, AlertTriangle, FileText, Printer } from "lucide-react";
+import { Plus, MoreHorizontal, Edit2, Eye, Globe, CheckCircle2, XCircle, Save, Trash2, GripVertical, User, Phone, Briefcase, Heart, AlertTriangle, FileText, Printer, Download, Search, Filter, Loader2, ExternalLink, Archive } from "lucide-react";
 import { useAdminVisa } from "@/hooks/useApiData";
 import { useCmsPageContent, useCmsSavePage } from "@/hooks/useCmsContent";
 import DataLoader from "@/components/DataLoader";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { config } from "@/lib/config";
 import { mockAdminVisa } from "@/lib/mock-data";
 import type { VisaCountryOption, CmsPageContent } from "@/lib/cms-defaults";
 
 const statusMap: Record<string, { label: string; class: string }> = {
+  submitted: { label: "Submitted", class: "bg-blue-500/10 text-blue-600" },
   processing: { label: "Processing", class: "bg-primary/10 text-primary" },
   approved: { label: "Approved", class: "bg-success/10 text-success" },
   pending_docs: { label: "Pending Docs", class: "bg-warning/10 text-warning" },
@@ -29,18 +34,27 @@ const statusMap: Record<string, { label: string; class: string }> = {
 const AdminVisa = () => {
   const [tab, setTab] = useState<"applications" | "countries" | "form-settings">("applications");
   const [viewApp, setViewApp] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { toast } = useToast();
-  const { data, isLoading, error, refetch } = useAdminVisa({ tab: tab === "form-settings" ? "countries" : tab });
+  const qc = useQueryClient();
 
-  // Map API response (which has { data: [...] } with nested applicantInfo) to flat format
+  const { data, isLoading, error, refetch } = useAdminVisa({
+    tab: tab === "form-settings" ? "countries" : tab,
+    ...(searchQuery ? { search: searchQuery } : {}),
+    ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+  });
+
+  // Map API response
   const apiApps = (data as any)?.data?.map((v: any) => {
     const info = v.applicantInfo || {};
     return {
       id: v.id, applicant: v.user?.name || `${info.firstName || ''} ${info.lastName || ''}`.trim(),
       country: v.country, type: v.visaType, status: v.status,
       fee: `৳${(v.processingFee || info.grandTotal || 0).toLocaleString()}`,
+      feeRaw: v.processingFee || info.grandTotal || 0,
       date: v.submittedAt,
-      // Flatten all applicant info for the detail dialog
       firstName: info.firstName, lastName: info.lastName, dob: info.dob, gender: info.gender,
       nationality: info.nationality, nidNumber: info.nidNumber, tinNumber: info.tinNumber,
       passportNumber: info.passportNumber, passportExpiry: info.passportExpiry,
@@ -58,12 +72,141 @@ const AdminVisa = () => {
     };
   }) || [];
 
+  const stats = (data as any)?.stats;
   const resolved = apiApps.length > 0 ? { applications: apiApps, countries: [] } : mockAdminVisa;
   const applications = resolved?.applications || [];
   const countries = (data as any)?.countries || resolved?.countries || [];
 
-  const handleApprove = (v: any) => toast({ title: "Visa Approved", description: `Application ${v.id} approved for ${v.applicant}` });
-  const handleReject = (v: any) => toast({ title: "Visa Rejected", description: `Application ${v.id} rejected` });
+  // REAL approve/reject via API
+  const handleStatusChange = async (app: any, newStatus: string) => {
+    setActionLoading(app.id);
+    try {
+      await api.put(`/admin/visa/${app.id}`, { status: newStatus });
+      toast({ title: `Visa ${newStatus === 'approved' ? 'Approved' : newStatus === 'rejected' ? 'Rejected' : 'Updated'}`, description: `Application ${app.id.substring(0, 8)} has been ${newStatus}.` });
+      qc.invalidateQueries({ queryKey: ['admin', 'visa'] });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Action Failed", description: err?.message || "Could not update visa status.", variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Download PDF
+  const downloadPDF = (app: any) => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<html><head><title>Visa Application ${app.id}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:40px;font-size:13px;color:#1a1a1a;line-height:1.6}
+      .header{text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:3px solid #0066cc}
+      .header h1{font-size:22px;color:#0066cc;margin-bottom:5px}
+      .header p{color:#666;font-size:12px}
+      .status-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+      .status-approved{background:#dcfce7;color:#16a34a}
+      .status-processing{background:#dbeafe;color:#2563eb}
+      .status-submitted{background:#e0e7ff;color:#4f46e5}
+      .status-rejected{background:#fecaca;color:#dc2626}
+      .section{margin:20px 0}
+      .section-title{font-size:13px;font-weight:700;color:#0066cc;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+      .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+      .field{margin-bottom:6px}
+      .field .label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px}
+      .field .value{font-size:13px;font-weight:600}
+      .full-width{grid-column:1/-1}
+      .docs-list{display:flex;flex-wrap:wrap;gap:8px}
+      .doc-badge{padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:600;border:1px solid #bbf7d0}
+      .notes-box{background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px}
+      .footer{margin-top:30px;padding-top:15px;border-top:2px solid #e5e7eb;text-align:center;color:#888;font-size:10px}
+      @media print{body{padding:20px}button{display:none!important}}
+    </style></head><body>`);
+
+    w.document.write(`
+      <div class="header">
+        <h1>Seven Trip — Visa Application</h1>
+        <p>Application ID: ${app.id} | Submitted: ${app.date ? new Date(app.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</p>
+        <p style="margin-top:8px"><span class="status-badge status-${app.status}">${statusMap[app.status]?.label || app.status}</span> &nbsp; Fee: <strong>${app.fee}</strong></p>
+      </div>
+    `);
+
+    const sections = [
+      { title: "Visa & Travel Details", fields: [["Country", app.country], ["Visa Type", app.type], ["Processing", app.processingType || "Normal"], ["Travellers", app.travellers || 1], ["Travel Date", app.travelDate], ["Return Date", app.returnDate]], full: [["Purpose of Visit", app.purposeOfVisit], ["Hotel", `${app.hotelName || ''} ${app.hotelAddress || ''}`.trim()], ["Previous Visits", app.previousVisits]] },
+      { title: "Personal Information", fields: [["First Name", app.firstName], ["Last Name", app.lastName], ["Date of Birth", app.dob], ["Gender", app.gender], ["Nationality", app.nationality], ["NID Number", app.nidNumber], ["TIN Number", app.tinNumber]] },
+      { title: "Passport Details", fields: [["Passport Number", app.passportNumber], ["Expiry Date", app.passportExpiry], ["Issue Date", app.passportIssueDate], ["Place of Issue", app.passportIssuePlace]] },
+      { title: "Contact Information", fields: [["Email", app.email], ["Phone", app.phone], ["Alt Phone", app.altPhone]], full: [["Current Address", app.currentAddress], ["Permanent Address", app.permanentAddress]] },
+      { title: "Professional Details", fields: [["Occupation", app.occupation], ["Employer", app.employer], ["Monthly Income", app.monthlyIncome]] },
+      { title: "Family Details", fields: [["Father's Name", app.fatherName], ["Mother's Name", app.motherName], ["Spouse Name", app.spouseName]] },
+      { title: "Emergency Contact", fields: [["Contact Name", app.emergencyContact], ["Phone", app.emergencyPhone], ["Relationship", app.emergencyRelation]] },
+    ];
+
+    sections.forEach(s => {
+      w.document.write(`<div class="section"><div class="section-title">${s.title}</div><div class="grid">`);
+      s.fields.forEach(([l, v]) => {
+        if (v) w.document.write(`<div class="field"><div class="label">${l}</div><div class="value">${v}</div></div>`);
+      });
+      w.document.write('</div>');
+      if (s.full) {
+        s.full.forEach(([l, v]) => {
+          if (v) w.document.write(`<div class="field" style="margin-top:8px"><div class="label">${l}</div><div class="value">${v}</div></div>`);
+        });
+      }
+      w.document.write('</div>');
+    });
+
+    if (app.documents?.length) {
+      w.document.write(`<div class="section"><div class="section-title">Uploaded Documents</div><div class="docs-list">`);
+      app.documents.forEach((doc: any) => {
+        const name = typeof doc === 'string' ? doc : (doc.label || doc.originalName || 'Document');
+        w.document.write(`<span class="doc-badge">${name}</span>`);
+      });
+      w.document.write('</div></div>');
+    }
+
+    if (app.notes) {
+      w.document.write(`<div class="section"><div class="section-title">Applicant Notes</div><div class="notes-box">${app.notes}</div></div>`);
+    }
+
+    w.document.write(`<div class="footer">Generated by Seven Trip Admin Panel • ${new Date().toLocaleString()}</div>`);
+    w.document.write(`<div style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 30px;background:#0066cc;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">🖨️ Print / Save as PDF</button></div>`);
+    w.document.write('</body></html>');
+    w.document.close();
+  };
+
+  // Download ZIP of all docs
+  const downloadDocsZip = async (app: any) => {
+    try {
+      const apiBase = config.apiBaseUrl;
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`${apiBase}/admin/visa/${app.id}/download-documents`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!resp.ok) throw new Error('Download failed');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `visa-docs-${app.firstName || 'applicant'}-${app.id.substring(0, 8)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded", description: "Documents ZIP downloaded." });
+    } catch (err: any) {
+      toast({ title: "Download Failed", description: err?.message || "Could not download documents.", variant: "destructive" });
+    }
+  };
+
+  // Open Google Drive upload (opens drive upload page with file)
+  const openInGoogleDrive = (app: any) => {
+    // Google Drive doesn't have a direct "upload from URL" public API via browser
+    // Best UX: open Google Drive in new tab so admin can upload the downloaded zip
+    downloadDocsZip(app).then(() => {
+      window.open('https://drive.google.com/drive/my-drive', '_blank');
+      toast({ title: "Google Drive", description: "ZIP downloaded. Upload it to the Google Drive tab that opened." });
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -71,6 +214,25 @@ const AdminVisa = () => {
         <h1 className="text-xl sm:text-2xl font-bold">Visa Management</h1>
         {tab !== "form-settings" && <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-1.5" /> Add Country</Button>}
       </div>
+
+      {/* Stats cards */}
+      {stats && tab === "applications" && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {[
+            { label: "Total", value: stats.total, color: "text-foreground" },
+            { label: "Submitted", value: stats.submitted, color: "text-blue-600" },
+            { label: "Processing", value: stats.processing, color: "text-primary" },
+            { label: "Approved", value: stats.approved, color: "text-success" },
+            { label: "Rejected", value: stats.rejected, color: "text-destructive" },
+          ].map((s, i) => (
+            <Card key={i} className="p-3">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-1 border-b border-border pb-px">
         {(["applications", "countries", "form-settings"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2.5 text-sm font-medium capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -78,6 +240,35 @@ const AdminVisa = () => {
           </button>
         ))}
       </div>
+
+      {/* Search & Filter bar for applications */}
+      {tab === "applications" && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, country..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-10 h-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-44 h-10">
+              <Filter className="w-4 h-4 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="submitted">Submitted</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="pending_docs">Pending Docs</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {tab === "form-settings" ? (
         <VisaFormSettingsEditor />
@@ -92,7 +283,7 @@ const AdminVisa = () => {
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">No applications found</TableCell></TableRow>
                   ) : applications.map((v: any) => (
                     <TableRow key={v.id}>
-                      <TableCell className="font-mono text-xs">{v.id}</TableCell>
+                      <TableCell className="font-mono text-xs">{typeof v.id === 'string' ? v.id.substring(0, 8) : v.id}</TableCell>
                       <TableCell className="font-medium text-sm">{v.applicant}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm"><div className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5 text-muted-foreground" /> {v.country}</div></TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{v.type}</TableCell>
@@ -101,9 +292,11 @@ const AdminVisa = () => {
                       <TableCell>
                         <DropdownMenu modal={false}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewApp(v)}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleApprove(v)}><CheckCircle2 className="w-4 h-4 mr-2" /> Approve</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleReject(v)}><XCircle className="w-4 h-4 mr-2" /> Reject</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setViewApp(v)}><Eye className="w-4 h-4 mr-2" /> View Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadPDF(v)}><Download className="w-4 h-4 mr-2" /> Download PDF</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(v, 'processing')} disabled={actionLoading === v.id}><Loader2 className={`w-4 h-4 mr-2 ${actionLoading === v.id ? 'animate-spin' : ''}`} /> Set Processing</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(v, 'approved')} disabled={actionLoading === v.id}><CheckCircle2 className="w-4 h-4 mr-2" /> Approve</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleStatusChange(v, 'rejected')} disabled={actionLoading === v.id}><XCircle className="w-4 h-4 mr-2" /> Reject</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -135,12 +328,12 @@ const AdminVisa = () => {
         </DataLoader>
       )}
 
-      {/* Visa Application Detail Dialog — FULL DATA */}
+      {/* ========== FULL DETAIL DIALOG ========== */}
       <Dialog open={!!viewApp} onOpenChange={() => setViewApp(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] p-0">
           <DialogHeader className="p-6 pb-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg">Visa Application — {viewApp?.id}</DialogTitle>
+              <DialogTitle className="text-lg">Visa Application — {viewApp?.id ? (typeof viewApp.id === 'string' ? viewApp.id.substring(0, 8) : viewApp.id) : ''}</DialogTitle>
               <Badge variant="outline" className={`${statusMap[viewApp?.status]?.class || ''}`}>{statusMap[viewApp?.status]?.label || viewApp?.status}</Badge>
             </div>
           </DialogHeader>
@@ -151,7 +344,7 @@ const AdminVisa = () => {
                 <div>
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Visa & Travel Details</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                    <DetailField label="Application ID" value={viewApp.id} mono />
+                    <DetailField label="Application ID" value={typeof viewApp.id === 'string' ? viewApp.id.substring(0, 12) : viewApp.id} mono />
                     <DetailField label="Country" value={viewApp.country} />
                     <DetailField label="Visa Type" value={viewApp.type} />
                     <DetailField label="Fee" value={viewApp.fee} highlight />
@@ -159,11 +352,9 @@ const AdminVisa = () => {
                     <DetailField label="Travellers" value={viewApp.travellers || 1} />
                     <DetailField label="Travel Date" value={viewApp.travelDate || "—"} />
                     <DetailField label="Return Date" value={viewApp.returnDate || "—"} />
-                    <DetailField label="Submitted" value={viewApp.date || "—"} />
+                    <DetailField label="Submitted" value={viewApp.date ? new Date(viewApp.date).toLocaleDateString('en-GB') : "—"} />
                   </div>
-                  {viewApp.purposeOfVisit && (
-                    <div className="mt-2"><DetailField label="Purpose of Visit" value={viewApp.purposeOfVisit} full /></div>
-                  )}
+                  {viewApp.purposeOfVisit && <div className="mt-2"><DetailField label="Purpose of Visit" value={viewApp.purposeOfVisit} full /></div>}
                   {(viewApp.hotelName || viewApp.hotelAddress) && (
                     <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
                       <DetailField label="Hotel" value={viewApp.hotelName || "—"} />
@@ -254,10 +445,26 @@ const AdminVisa = () => {
                     <Separator />
                     <div>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Uploaded Documents</p>
-                      <div className="flex flex-wrap gap-2">
-                        {viewApp.documents.map((doc: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{doc}</Badge>
-                        ))}
+                      <div className="space-y-2">
+                        {viewApp.documents.map((doc: any, i: number) => {
+                          const isObj = typeof doc === 'object';
+                          const label = isObj ? (doc.label || doc.originalName) : doc;
+                          const url = isObj && doc.url ? `${config.apiBaseUrl.replace('/api', '')}${doc.url}` : null;
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-success/5 border border-success/20">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                                <span className="text-sm font-medium truncate">{label}</span>
+                                {isObj && doc.size && <span className="text-[10px] text-muted-foreground shrink-0">({(doc.size / 1024).toFixed(0)} KB)</span>}
+                              </div>
+                              {url && (
+                                <a href={url} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs"><ExternalLink className="w-3 h-3 mr-1" /> View</Button>
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </>
@@ -276,45 +483,41 @@ const AdminVisa = () => {
 
                 <Separator />
                 {/* Actions */}
-                <div className="flex items-center justify-between pt-1">
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const printContent = document.getElementById('visa-print-area');
-                    if (printContent) {
-                      const w = window.open('', '_blank');
-                      if (w) {
-                        w.document.write(`<html><head><title>Visa Application ${viewApp.id}</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h2{margin-bottom:5px}h3{margin:16px 0 8px;color:#555;font-size:12px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #ddd;padding-bottom:4px}.row{display:flex;gap:24px;margin-bottom:4px}.label{color:#888;min-width:140px}.value{font-weight:600}.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}</style></head><body>`);
-                        w.document.write(`<h2>Visa Application — ${viewApp.id}</h2>`);
-                        w.document.write(`<p>Status: <span class="badge">${statusMap[viewApp.status]?.label || viewApp.status}</span> | Fee: ${viewApp.fee}</p>`);
-                        const sections = [
-                          { title: "Visa & Travel", fields: [["Country", viewApp.country], ["Type", viewApp.type], ["Processing", viewApp.processingType || "Normal"], ["Travellers", viewApp.travellers || 1], ["Travel Date", viewApp.travelDate], ["Return Date", viewApp.returnDate], ["Purpose", viewApp.purposeOfVisit], ["Hotel", viewApp.hotelName], ["Previous Visits", viewApp.previousVisits]] },
-                          { title: "Personal Information", fields: [["Name", `${viewApp.firstName} ${viewApp.lastName}`], ["DOB", viewApp.dob], ["Gender", viewApp.gender], ["Nationality", viewApp.nationality], ["NID", viewApp.nidNumber], ["TIN", viewApp.tinNumber]] },
-                          { title: "Passport", fields: [["Number", viewApp.passportNumber], ["Expiry", viewApp.passportExpiry], ["Issue Date", viewApp.passportIssueDate], ["Place", viewApp.passportIssuePlace]] },
-                          { title: "Contact", fields: [["Email", viewApp.email], ["Phone", viewApp.phone], ["Alt Phone", viewApp.altPhone], ["Current Address", viewApp.currentAddress], ["Permanent Address", viewApp.permanentAddress]] },
-                          { title: "Professional", fields: [["Occupation", viewApp.occupation], ["Employer", viewApp.employer], ["Income", viewApp.monthlyIncome]] },
-                          { title: "Family", fields: [["Father", viewApp.fatherName], ["Mother", viewApp.motherName], ["Spouse", viewApp.spouseName]] },
-                          { title: "Emergency Contact", fields: [["Name", viewApp.emergencyContact], ["Phone", viewApp.emergencyPhone], ["Relation", viewApp.emergencyRelation]] },
-                        ];
-                        sections.forEach(s => {
-                          w.document.write(`<h3>${s.title}</h3>`);
-                          s.fields.forEach(([l, v]) => { if (v) w.document.write(`<div class="row"><span class="label">${l}:</span><span class="value">${v}</span></div>`); });
-                        });
-                        if (viewApp.documents?.length) { w.document.write(`<h3>Documents</h3><p>${viewApp.documents.join(', ')}</p>`); }
-                        if (viewApp.notes) { w.document.write(`<h3>Notes</h3><p>${viewApp.notes}</p>`); }
-                        w.document.write('</body></html>');
-                        w.document.close();
-                        w.onload = () => w.print();
-                      }
-                    }
-                  }}>
-                    <Printer className="w-3.5 h-3.5 mr-1" /> Print
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => { handleApprove(viewApp); setViewApp(null); }}>
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve
+                <div className="space-y-3 pt-1">
+                  {/* Download actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => downloadPDF(viewApp)}>
+                      <Printer className="w-3.5 h-3.5 mr-1" /> Download PDF
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => { handleReject(viewApp); setViewApp(null); }}>
-                      <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
+                    {viewApp.documents?.some((d: any) => typeof d === 'object' && d.url) && (
+                      <Button variant="outline" size="sm" onClick={() => downloadDocsZip(viewApp)}>
+                        <Archive className="w-3.5 h-3.5 mr-1" /> Download All Docs (ZIP)
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => openInGoogleDrive(viewApp)}>
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" /> Save to Google Drive
                     </Button>
+                  </div>
+                  {/* Status actions */}
+                  <div className="flex items-center gap-2">
+                    {viewApp.status !== 'approved' && (
+                      <Button size="sm" className="bg-success hover:bg-success/90" disabled={actionLoading === viewApp.id}
+                        onClick={() => { handleStatusChange(viewApp, 'approved'); setViewApp(null); }}>
+                        {actionLoading === viewApp.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />} Approve
+                      </Button>
+                    )}
+                    {viewApp.status !== 'rejected' && (
+                      <Button size="sm" variant="destructive" disabled={actionLoading === viewApp.id}
+                        onClick={() => { handleStatusChange(viewApp, 'rejected'); setViewApp(null); }}>
+                        {actionLoading === viewApp.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <XCircle className="w-3.5 h-3.5 mr-1" />} Reject
+                      </Button>
+                    )}
+                    {viewApp.status !== 'processing' && (
+                      <Button size="sm" variant="outline" disabled={actionLoading === viewApp.id}
+                        onClick={() => { handleStatusChange(viewApp, 'processing'); setViewApp(null); }}>
+                        Set Processing
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -344,9 +547,9 @@ const VisaFormSettingsEditor = () => {
   const [editData, setEditData] = useState<CmsPageContent | null>(null);
 
   const current = editData || page;
-  const config = current?.visaConfig;
+  const visaConfig = current?.visaConfig;
 
-  if (isLoading || !current || !config) {
+  if (isLoading || !current || !visaConfig) {
     return <div className="py-12 text-center text-muted-foreground">Loading form settings...</div>;
   }
 
@@ -355,7 +558,7 @@ const VisaFormSettingsEditor = () => {
     return null;
   }
 
-  const updateConfig = (updater: (cfg: typeof config) => void) => {
+  const updateConfig = (updater: (cfg: typeof visaConfig) => void) => {
     setEditData(prev => {
       if (!prev?.visaConfig) return prev;
       const next = JSON.parse(JSON.stringify(prev));
@@ -397,18 +600,18 @@ const VisaFormSettingsEditor = () => {
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5"><Label>Page Title</Label><Input value={current.pageTitle} onChange={e => setEditData(prev => prev ? { ...prev, pageTitle: e.target.value } : prev)} /></div>
-            <div className="space-y-1.5"><Label>Processing Note</Label><Input value={config.estimatedProcessingNote} onChange={e => updateConfig(c => { c.estimatedProcessingNote = e.target.value; })} /></div>
+            <div className="space-y-1.5"><Label>Processing Note</Label><Input value={visaConfig.estimatedProcessingNote} onChange={e => updateConfig(c => { c.estimatedProcessingNote = e.target.value; })} /></div>
           </div>
-          <div className="space-y-1.5"><Label>Terms Checkbox Text</Label><Textarea value={config.termsText} onChange={e => updateConfig(c => { c.termsText = e.target.value; })} rows={2} /></div>
+          <div className="space-y-1.5"><Label>Terms Checkbox Text</Label><Textarea value={visaConfig.termsText} onChange={e => updateConfig(c => { c.termsText = e.target.value; })} rows={2} /></div>
           <div className="space-y-1.5"><Label>Step Labels</Label>
-            <div className="flex flex-wrap gap-2">{config.formSteps.map((s: any, i: number) => (<Input key={i} value={s.label} className="w-36" onChange={e => updateConfig(c => { c.formSteps[i].label = e.target.value; })} />))}</div>
+            <div className="flex flex-wrap gap-2">{visaConfig.formSteps.map((s: any, i: number) => (<Input key={i} value={s.label} className="w-36" onChange={e => updateConfig(c => { c.formSteps[i].label = e.target.value; })} />))}</div>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Countries & Pricing</h2><Button size="sm" onClick={addCountry}><Plus className="w-4 h-4 mr-1" /> Add Country</Button></div>
 
-      {config.countries.map((country: any, ci: number) => (
+      {visaConfig.countries.map((country: any, ci: number) => (
         <Card key={ci}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
