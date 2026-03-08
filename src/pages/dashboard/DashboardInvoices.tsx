@@ -37,7 +37,6 @@ const DashboardInvoices = () => {
 
   const resolved = (data as any) || {};
   const invoices = resolved?.invoices || [];
-  const invoices = resolved?.invoices || [];
 
   const filtered = invoices.filter((inv: any) => {
     if (filter !== "all" && inv.status?.toLowerCase() !== filter) return false;

@@ -55,22 +55,10 @@ const DashboardBookings = () => {
   const resolved = (data as any) || {};
   const allBookings = resolved?.bookings || [];
 
-  // Local filtering for mock data (API handles its own filtering)
-  const bookings = allBookings.filter((b: any) => {
-    if (!isApiData) {
-      if (activeTab !== "All" && b.status?.toLowerCase() !== activeTab.toLowerCase()) return false;
-      if (typeFilter !== "all" && b.type !== typeFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return b.id?.toLowerCase().includes(q) || b.title?.toLowerCase().includes(q) || b.pnr?.toLowerCase().includes(q);
-      }
-    }
-    return true;
-  });
+  const bookings = allBookings;
 
-  // Compute tab counts from all data
-  const tabCounts: Record<string, number> = isApiData ? (resolved?.tabCounts || {}) : {};
-  if (!isApiData) {
+  const tabCounts: Record<string, number> = resolved?.tabCounts || {};
+  if (!tabCounts["All"]) {
     tabCounts["All"] = allBookings.length;
     statusTabs.forEach(tab => {
       if (tab !== "All") {
@@ -79,12 +67,10 @@ const DashboardBookings = () => {
     });
   }
 
-  const total = isApiData ? (resolved?.total || 0) : bookings.length;
+  const total = resolved?.total || bookings.length;
   const totalPages = Math.ceil(total / Number(perPage)) || 1;
-  const effectiveError = error && allBookings.length === 0 ? error : null;
 
-  // Paginate locally for mock data
-  const paginatedBookings = isApiData ? bookings : bookings.slice((page - 1) * Number(perPage), page * Number(perPage));
+  const paginatedBookings = bookings.slice((page - 1) * Number(perPage), page * Number(perPage));
 
   return (
     <div className="space-y-6">

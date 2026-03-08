@@ -35,23 +35,13 @@ const DashboardPayLater = () => {
   const allItems = resolved?.items || resolved?.data || [];
   const summary = resolved?.summary || {};
 
-  // Local filtering for mock data
-  const items = allItems.filter((item: any) => {
-    if (!isApiData) {
-      if (activeTab !== "All" && item.status !== activeTab) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return (item.reference || "").toLowerCase().includes(q) || (item.bookingRef || "").toLowerCase().includes(q);
-      }
-    }
-    return true;
-  });
+  const items = allItems;
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold">Pay Later</h1>
 
-      <DataLoader isLoading={isLoading} error={effectiveError} skeleton="dashboard" retry={refetch}>
+      <DataLoader isLoading={isLoading} error={error} skeleton="dashboard" retry={refetch}>
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="border-destructive/20">
