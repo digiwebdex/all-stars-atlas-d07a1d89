@@ -59,7 +59,7 @@ const AdminPaymentApprovals = () => {
     note: p.note || "",
     receiptUrl: p.receiptUrl,
     date: p.date ? new Date(p.date).toLocaleDateString('en-GB') : "—",
-  })) : mockAdminPaymentApprovals.data;
+  })) : [];
 
   // Apply local status updates (for mock data actions)
   const payments = rawPayments.map((p: any) => ({

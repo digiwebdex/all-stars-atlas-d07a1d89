@@ -46,7 +46,7 @@ const AdminBookings = () => {
     notes: b.notes || "",
   })) || [];
 
-  const bookings = apiBookings.length > 0 ? apiBookings : mockAdminBookings.bookings;
+  const bookings = apiBookings;
 
   const stats = {
     total: bookings.length,

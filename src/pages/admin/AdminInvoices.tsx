@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import DataLoader from "@/components/DataLoader";
-import { mockAdminInvoices } from "@/lib/mock-data";
+
 import { generateInvoicePDF, printInvoicePDF } from "@/lib/pdf-generator";
 import { downloadCSV } from "@/lib/csv-export";
 import { getCollection, addToCollection } from "@/lib/local-store";

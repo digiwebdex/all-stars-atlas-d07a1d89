@@ -37,7 +37,7 @@ const AdminUsers = () => {
   })) || [];
 
   const apiStats = (data as any)?.stats;
-  const users = apiUsers.length > 0 ? apiUsers : mockAdminUsers.users;
+  const users = apiUsers;
 
   const stats = apiStats || {
     total: users.length,

@@ -46,7 +46,7 @@ const AdminPayments = () => {
     description: t.description || "",
   })) || [];
 
-  const payments = apiPayments.length > 0 ? apiPayments : mockAdminPayments.payments;
+  const payments = apiPayments;
 
   const stats = {
     totalRevenue: `৳${payments.filter((p: any) => p.status === "completed").reduce((s: number, p: any) => s + (p.rawAmount || parseInt(String(p.amount).replace(/[^\d]/g, "") || "0")), 0).toLocaleString()}`,
