@@ -102,7 +102,7 @@
 
 ### Public Site (10 Services)
 - **Homepage** — 11 CMS-driven sections with parallax hero video, animated counters, and section reordering
-- **Flight Search** — One-way, round-trip, multi-city (2-5 segments), 740+ airports, cabin class, passenger count
+- **Flight Search** — One-way, round-trip, multi-city (2-5 segments), 740+ airports, cabin class, passenger count. **Real-time GDS via TTI/ZENITH API (Air Astra)** + local database results merged. Google Flights-style cards with airline logos (40+ airlines), timeline segments, layover badges, and advanced filters (stops, price, time, airline)
 - **Hotel Search** — Location, dates, guests, grid/list view, wishlist hearts, star rating & price filters
 - **Visa Services** — 20 countries, step-by-step application, document upload
 - **Holiday Packages** — Tour grid with detail pages, pricing, itineraries
