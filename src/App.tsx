@@ -2,13 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 // Layouts (keep eager — they wrap everything)
 import PublicLayout from "@/components/layout/PublicLayout";
@@ -19,6 +19,13 @@ const PageLoader = () => (
     <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 );
+
+// Scroll to top on route change
+const ScrollToTopOnNav = () => {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
 
 // Lazy-loaded pages
 const Index = lazy(() => import("@/pages/Index"));
@@ -114,6 +121,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+            <ScrollToTopOnNav />
             <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes */}

@@ -71,6 +71,18 @@ export const useUpdateProfile = () => {
 export const useChangePassword = () =>
   useMutation({ mutationFn: (data: Record<string, unknown>) => api.post(`${API_ENDPOINTS.DASHBOARD_SETTINGS}/password`, data) });
 
+export const useDashboardSearchHistory = (params?: Record<string, string | number | boolean | undefined>) =>
+  useQuery({ queryKey: ['dashboard', 'search-history', params], queryFn: () => api.get(API_ENDPOINTS.DASHBOARD_SEARCH_HISTORY, params) });
+
+export const useDashboardETransactions = (params?: Record<string, string | number | boolean | undefined>) =>
+  useQuery({ queryKey: ['dashboard', 'e-transactions', params], queryFn: () => api.get(API_ENDPOINTS.DASHBOARD_E_TRANSACTIONS, params) });
+
+export const useDashboardPayLater = (params?: Record<string, string | number | boolean | undefined>) =>
+  useQuery({ queryKey: ['dashboard', 'pay-later', params], queryFn: () => api.get(API_ENDPOINTS.DASHBOARD_PAY_LATER, params) });
+
+export const useDashboardInvoices = (params?: Record<string, string | number | boolean | undefined>) =>
+  useQuery({ queryKey: ['dashboard', 'invoices', params], queryFn: () => api.get(API_ENDPOINTS.DASHBOARD_INVOICES, params) });
+
 // ============ FLIGHTS ============
 
 export const useFlightSearch = (params?: Record<string, string | number | boolean | undefined>) =>
@@ -109,17 +121,17 @@ export const useSubmitVisaApplication = () =>
 // ============ MEDICAL ============
 
 export const useMedicalHospitals = (params?: Record<string, string | number | boolean | undefined>) =>
-  useQuery({ queryKey: ['medical', 'hospitals', params], queryFn: () => api.get(API_ENDPOINTS.MEDICAL_HOSPITALS, params) });
+  useQuery({ queryKey: ['medical', 'hospitals', params], queryFn: () => api.get(API_ENDPOINTS.MEDICAL_HOSPITALS, params), enabled: !!params });
 
 // ============ CARS ============
 
 export const useCarSearch = (params?: Record<string, string | number | boolean | undefined>) =>
-  useQuery({ queryKey: ['cars', 'search', params], queryFn: () => api.get(API_ENDPOINTS.CARS_SEARCH, params) });
+  useQuery({ queryKey: ['cars', 'search', params], queryFn: () => api.get(API_ENDPOINTS.CARS_SEARCH, params), enabled: !!params });
 
 // ============ ESIM ============
 
 export const useESIMPlans = (params?: Record<string, string | number | boolean | undefined>) =>
-  useQuery({ queryKey: ['esim', 'plans', params], queryFn: () => api.get(API_ENDPOINTS.ESIM_PLANS, params) });
+  useQuery({ queryKey: ['esim', 'plans', params], queryFn: () => api.get(API_ENDPOINTS.ESIM_PLANS, params), enabled: !!params });
 
 export const usePurchaseESIM = () =>
   useMutation({ mutationFn: (data: Record<string, unknown>) => api.post(API_ENDPOINTS.ESIM_PURCHASE, data) });

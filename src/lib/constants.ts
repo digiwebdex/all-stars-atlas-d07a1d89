@@ -61,6 +61,10 @@ export const API_ENDPOINTS = {
   DASHBOARD_TICKETS: '/dashboard/tickets',
   DASHBOARD_WISHLIST: '/dashboard/wishlist',
   DASHBOARD_SETTINGS: '/dashboard/settings',
+  DASHBOARD_SEARCH_HISTORY: '/dashboard/search-history',
+  DASHBOARD_E_TRANSACTIONS: '/dashboard/e-transactions',
+  DASHBOARD_PAY_LATER: '/dashboard/pay-later',
+  DASHBOARD_INVOICES: '/dashboard/invoices',
 
   // Admin
   ADMIN_LOGIN: '/auth/admin/login',
@@ -71,6 +75,9 @@ export const API_ENDPOINTS = {
   ADMIN_REPORTS: '/admin/reports',
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_VISA: '/admin/visa',
+  ADMIN_DISCOUNTS: '/admin/discounts',
+  ADMIN_INVOICES: '/admin/invoices',
+  ADMIN_PAYMENT_APPROVALS: '/admin/payment-approvals',
 
   // CMS
   CMS_PAGES: '/admin/cms/pages',
