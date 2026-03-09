@@ -144,9 +144,10 @@ async function searchFlights({ origin, destination, departDate, returnDate, adul
 
   const response = await ttiRequest('SearchFlights', request);
 
-  if (response.ResponseInfo && response.ResponseInfo.Errors && response.ResponseInfo.Errors.length > 0) {
-    const errMsg = response.ResponseInfo.Errors.map(e => e.Message || e.Code || 'Unknown').join('; ');
-    throw new Error(`TTI search error: ${errMsg}`);
+  // TTI returns Error (singular object) not Errors (array)
+  if (response.ResponseInfo?.Error) {
+    const err = response.ResponseInfo.Error;
+    throw new Error(`TTI search error: ${err.Message || err.Code || err.FullText || 'Unknown'}`);
   }
 
   return normalizeTTIResponse(response, origin, destination);
