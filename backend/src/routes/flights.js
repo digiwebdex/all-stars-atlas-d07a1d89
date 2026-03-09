@@ -43,7 +43,7 @@ router.get('/search', async (req, res) => {
         infants: infantCount,
         cabinClass: cabClass || undefined,
       }).catch(err => {
-        console.warn('TTI search failed (continuing with DB only):', err.message);
+        console.error('TTI search failed (continuing with DB only):', err.message, err.stack);
         return [];
       }),
     ]);
