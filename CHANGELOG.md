@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [2.6.0] — 2026-03-09 — Full Production Audit & Hardening (Atom-by-Atom)
+
+### Fixed — Navigation & UX
+- **Scroll-to-top on route change** — Added `ScrollToTopOnNav` component inside `BrowserRouter` so page scrolls to top on every navigation (was missing, causing pages to open mid-scroll)
+
+### Fixed — API Query Guards
+- **Medical, Car, eSIM queries** — Added `enabled: !!params` guards to prevent unnecessary API calls when no search params are provided (was firing on mount)
+
+### Added — Missing API Constants
+- **Dashboard endpoints** — Added `DASHBOARD_SEARCH_HISTORY`, `DASHBOARD_E_TRANSACTIONS`, `DASHBOARD_PAY_LATER`, `DASHBOARD_INVOICES` to `constants.ts`
+- **Admin endpoints** — Added `ADMIN_DISCOUNTS`, `ADMIN_INVOICES`, `ADMIN_PAYMENT_APPROVALS` to `constants.ts`
+- **Dashboard hooks** — Added `useDashboardSearchHistory`, `useDashboardETransactions`, `useDashboardPayLater`, `useDashboardInvoices` to `useApiData.ts`
+
+### Improved — SEO
+- **Sitemap** — Added `lastmod` dates to all 20 URLs in `sitemap.xml`
+
+### Updated — Documentation
+- **CHANGELOG.md** — Added v2.6 release notes
+- **README.md** — Updated feature list and version references
+
+---
+
 ## [2.5.0] — 2026-03-09 — TTI/ZENITH GDS Integration & Database-Backed Config
 
 ### Added — TTI/ZENITH Air Astra Flight API
