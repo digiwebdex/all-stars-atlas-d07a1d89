@@ -34,38 +34,58 @@ function isBimanAirline(airlineCode?: string): boolean {
   return airlineCode?.toUpperCase() === "BG";
 }
 
-/** Calculate payment deadline based on rules */
-function calculatePaymentDeadline(departureTime: string, isDomestic: boolean): { deadline: Date; label: string } {
-  const now = new Date();
-  const departure = new Date(departureTime);
-  const hoursUntilFlight = (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
+/** 
+ * Resolve payment deadline.
+ * Priority: 1) Airline-provided timeLimit (from GDS response)
+ *           2) Fallback calculation based on route type
+ * The airline's GDS (TTI, Sabre, BDFare) returns a LastTicketingDate / TimeLimit
+ * that specifies exactly when the booking expires. We show that to the user.
+ */
+function resolveDeadlineInfo(flight: any, isDomestic: boolean): { deadline: Date; label: string } | null {
+  if (!flight) return null;
 
-  if (isDomestic) {
-    if (hoursUntilFlight <= 48) {
-      // Flight within 48h → pay 3h before flight
-      const deadline = new Date(departure.getTime() - 3 * 60 * 60 * 1000);
-      return { deadline, label: `Pay within ${Math.max(1, Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60)))} hours (3h before flight)` };
-    } else {
-      // Flight > 48h → booking valid 48h, pay 24h before flight
-      const deadline48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      const deadline24hBefore = new Date(departure.getTime() - 24 * 60 * 60 * 1000);
-      const deadline = deadline48h < deadline24hBefore ? deadline48h : deadline24hBefore;
-      const hoursLeft = Math.max(1, Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60)));
-      return { deadline, label: hoursLeft > 24 ? `Pay within ${Math.ceil(hoursLeft / 24)} days` : `Pay within ${hoursLeft} hours` };
-    }
-  } else {
-    // International
-    if (hoursUntilFlight <= 7 * 24) {
-      // Flight within 7 days → pay 24h before flight
-      const deadline = new Date(departure.getTime() - 24 * 60 * 60 * 1000);
-      const hoursLeft = Math.max(1, Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60)));
-      return { deadline, label: hoursLeft > 24 ? `Pay within ${Math.ceil(hoursLeft / 24)} days` : `Pay within ${hoursLeft} hours` };
-    } else {
-      // Flight > 7 days → 7 day booking validity
-      const deadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return { deadline, label: "Pay within 7 days" };
+  let deadline: Date | null = null;
+
+  // 1) Check airline-provided time limit
+  if (flight.timeLimit) {
+    const tl = new Date(flight.timeLimit);
+    if (!isNaN(tl.getTime()) && tl > new Date()) {
+      deadline = tl;
     }
   }
+
+  // 2) Fallback: calculate from departure time
+  if (!deadline && flight.departureTime) {
+    const now = new Date();
+    const departure = new Date(flight.departureTime);
+    const hoursUntilFlight = (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (isDomestic) {
+      if (hoursUntilFlight <= 48) {
+        deadline = new Date(departure.getTime() - 3 * 60 * 60 * 1000);
+      } else {
+        const d48 = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+        const d24b = new Date(departure.getTime() - 24 * 60 * 60 * 1000);
+        deadline = d48 < d24b ? d48 : d24b;
+      }
+    } else {
+      if (hoursUntilFlight <= 7 * 24) {
+        deadline = new Date(departure.getTime() - 24 * 60 * 60 * 1000);
+      } else {
+        deadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      }
+    }
+  }
+
+  if (!deadline) return null;
+
+  const now = new Date();
+  const hoursLeft = Math.max(1, Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60)));
+  const label = hoursLeft > 24
+    ? `Pay within ${Math.ceil(hoursLeft / 24)} days (by ${deadline.toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})`
+    : `Pay within ${hoursLeft} hours (by ${deadline.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })})`;
+
+  return { deadline, label };
 }
 
 const RenderField = ({ field }: { field: BookingFormField }) => {
