@@ -108,8 +108,8 @@ router.get('/bookings', async (req, res) => {
       id: b.id, bookingRef: b.booking_ref, bookingType: b.booking_type,
       status: b.status, totalAmount: parseFloat(b.total_amount), currency: b.currency,
       paymentMethod: b.payment_method, paymentStatus: b.payment_status,
-      details: JSON.parse(b.details || '{}'), passengerInfo: JSON.parse(b.passenger_info || '[]'),
-      contactInfo: JSON.parse(b.contact_info || '{}'), notes: b.notes,
+      details: safeJsonParse(b.details, {}), passengerInfo: safeJsonParse(b.passenger_info, []),
+      contactInfo: safeJsonParse(b.contact_info, {}), notes: b.notes,
       bookedAt: b.booked_at, updatedAt: b.updated_at,
     }));
     res.json({ data, total: countResult[0].total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(countResult[0].total / parseInt(limit)) });
