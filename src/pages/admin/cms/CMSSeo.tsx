@@ -28,27 +28,27 @@ const defaultGlobalSeo = {
   siteTitleSuffix: " | Seven Trip",
   metaDescription: "Book flights, hotels, visa & holiday packages at best prices. IATA accredited, 24/7 support, instant confirmation. Bangladesh's #1 travel platform.",
   metaKeywords: "flights, hotels, visa, travel, Bangladesh, Seven Trip, holiday packages, flight booking, hotel reservation",
-  canonicalUrl: "https://seventrip.com.bd",
+  canonicalUrl: "https://seven-trip.com",
   language: "en",
   favicon: "/favicon.png",
-  ogImage: "https://seventrip.com.bd/images/og-default.jpg",
+  ogImage: "https://seven-trip.com/images/og-default.jpg",
 };
 
 const defaultRobots = {
   allowIndexing: true,
   allowFollowing: true,
-  sitemapUrl: "https://seventrip.com.bd/sitemap.xml",
-  customRules: "User-agent: *\nAllow: /\nDisallow: /dashboard/\nDisallow: /admin/\nDisallow: /auth/\n\nSitemap: https://seventrip.com.bd/sitemap.xml",
+  sitemapUrl: "https://seven-trip.com/sitemap.xml",
+  customRules: "User-agent: *\nAllow: /\nDisallow: /dashboard/\nDisallow: /admin/\nDisallow: /auth/\n\nSitemap: https://seven-trip.com/sitemap.xml",
 };
 
 const defaultJsonLd = {
   enabled: true,
   type: "TravelAgency",
   name: "Seven Trip",
-  url: "https://seventrip.com.bd",
-  logo: "https://seventrip.com.bd/images/seven-trip-logo.png",
+  url: "https://seven-trip.com",
+  logo: "https://seven-trip.com/images/seven-trip-logo.png",
   phone: "+880 1749-373748",
-  email: "support@seventrip.com.bd",
+  email: "support@seven-trip.com",
   address: "Beena Kanon, Flat-4A, House-03, Road-17, Block-E, Banani, Dhaka-1213",
   priceRange: "৳৳",
 };
