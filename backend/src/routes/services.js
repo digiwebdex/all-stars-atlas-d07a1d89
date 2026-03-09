@@ -5,6 +5,9 @@ const db = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 const { notifyBookingConfirm, notifyContactSubmission } = require('../services/notify');
 const { safeJsonParse } = require('../utils/json');
+const { getCountries: airaloCountries, getPackages: airaloPackages, placeOrder: airaloOrder, getAiraloConfig } = require('./airalo');
+const { submitRecharge: sslRecharge, getRechargeConfig } = require('./ssl-recharge');
+const { submitBillPayment: sslBillPay, getBillPayConfig } = require('./ssl-recharge');
 
 const router = express.Router();
 
@@ -196,6 +199,19 @@ router.post('/cars/book', authenticate, async (req, res) => {
 router.get('/esim/plans', async (req, res) => {
   try {
     const { country, page = 1, limit = 20 } = req.query;
+
+    // Try Airalo API first
+    const airaloConfig = await getAiraloConfig();
+    if (airaloConfig && country) {
+      try {
+        const packages = await airaloPackages(country.toLowerCase());
+        if (packages.length > 0) {
+          return res.json({ data: packages, total: packages.length, page: 1, limit: 50, totalPages: 1, source: 'airalo' });
+        }
+      } catch (err) { console.error('Airalo fetch failed, falling back to DB:', err.message); }
+    }
+
+    // Fallback to DB
     let sql = 'SELECT * FROM esim_plans WHERE available = 1';
     const params = [];
     if (country) { sql += ' AND country LIKE ?'; params.push(`%${country}%`); }
@@ -205,7 +221,7 @@ router.get('/esim/plans', async (req, res) => {
       duration: r.duration, price: parseFloat(r.price), currency: r.currency,
       provider: r.provider, features: safeJsonParse(r.features, []),
     }));
-    res.json({ data, total: data.length, page: 1, limit: 50, totalPages: 1 });
+    res.json({ data, total: data.length, page: 1, limit: 50, totalPages: 1, source: 'db' });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
 });
 
@@ -235,13 +251,24 @@ router.get('/recharge/operators', async (req, res) => {
 
 router.post('/recharge/submit', authenticate, async (req, res) => {
   try {
-    const { operator, phoneNumber, amount, type, paymentMethod } = req.body;
+    const { operator, phoneNumber, number, amount, type, paymentMethod } = req.body;
+    const phone = phoneNumber || number || '';
     const txnId = uuidv4();
+
+    // Try SSL Wireless API first
+    const rechargeConf = await getRechargeConfig();
+    let apiResult = null;
+    if (rechargeConf) {
+      try {
+        apiResult = await sslRecharge({ operator, phoneNumber: phone, amount, type });
+      } catch (err) { console.error('SSL Recharge API failed:', err.message); }
+    }
+
     await db.query(
       `INSERT INTO transactions (id, user_id, type, amount, status, payment_method, description, meta) VALUES (?, ?, 'recharge', ?, 'completed', ?, ?, ?)`,
-      [txnId, req.user.sub, amount || 0, paymentMethod || 'bkash', `Recharge ৳${amount} to ${phoneNumber}`, JSON.stringify({ operator, phoneNumber, rechargeType: type })]
+      [txnId, req.user.sub, amount || 0, paymentMethod || 'bkash', `Recharge ৳${amount} to ${phone}`, JSON.stringify({ operator, phoneNumber: phone, rechargeType: type, provider: apiResult?.provider || 'local', apiTxnId: apiResult?.transactionId })]
     );
-    res.status(201).json({ id: uuidv4(), status: 'completed', transactionId: txnId, message: `Recharge of ৳${amount} to ${phoneNumber} successful` });
+    res.status(201).json({ id: uuidv4(), status: 'completed', transactionId: txnId, provider: apiResult?.provider || 'local', message: apiResult?.message || `Recharge of ৳${amount} to ${phone} successful` });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
 });
 
