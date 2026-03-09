@@ -20,7 +20,7 @@ const { router: bkashRoutes } = require('./src/routes/bkash');
 const { router: nagadRoutes } = require('./src/routes/nagad');
 
 const app = express();
-app.set('trust proxy', true); // Behind Nginx reverse proxy
+app.set('trust proxy', 1); // Trust first proxy (Nginx)
 const PORT = process.env.PORT || 3001;
 
 // Middleware
