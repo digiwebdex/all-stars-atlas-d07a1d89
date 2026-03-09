@@ -54,7 +54,7 @@ const HotelResults = () => {
   const { data: rawData, isLoading, error, refetch } = useHotelSearch(params);
   const apiData = (rawData as any) || {};
   const hotels = apiData.data || apiData.hotels || [];
-  const searchMeta = apiData.searchMeta || { total: apiData.total || hotels.length };
+  const searchMeta = apiData.searchMeta || { total: apiData.total || hotels.length, location: destination };
 
   const FilterPanel = () => (
     <div className="space-y-6">
