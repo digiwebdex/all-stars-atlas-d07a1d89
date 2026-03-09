@@ -93,6 +93,14 @@ const HotelResults = () => {
       </div>
 
       <div className="container mx-auto px-4 py-6">
+        {!hasRequiredParams ? (
+          <Card><CardContent className="py-16 text-center">
+            <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+            <h2 className="text-lg font-bold mb-2">No Search Criteria</h2>
+            <p className="text-muted-foreground mb-4">Please use the search widget to search for hotels with check-in and check-out dates.</p>
+            <Button asChild><Link to="/">Search Hotels</Link></Button>
+          </CardContent></Card>
+        ) : (
         <div className="flex gap-6">
           <aside className="hidden lg:block w-64 shrink-0">
             <Card className="sticky top-28"><CardContent className="p-5">
