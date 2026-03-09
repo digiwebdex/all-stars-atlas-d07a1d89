@@ -143,10 +143,10 @@ const DashboardInvoices = () => {
                           <DialogContent className="max-w-lg">
                             <DialogHeader><DialogTitle>Invoice {inv.invoiceNo}</DialogTitle></DialogHeader>
                             <div className="space-y-4 py-4">
-                              <div className="flex justify-between items-start">
+                                <div className="flex justify-between items-start">
                                 <div>
                                   <p className="text-lg font-black">Seven Trip</p>
-                                  <p className="text-xs text-muted-foreground">Seven Trip Bangladesh Ltd</p>
+                                  <p className="text-xs text-muted-foreground">A concern of Evan International</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-sm font-bold">{inv.invoiceNo}</p>
