@@ -278,15 +278,32 @@ const SearchWidget = () => {
   }, [multiCitySegments.length]);
 
   const domesticAirports = useMemo(() => AIRPORTS.filter(a => a.country === "BD"), []);
+  const internationalAirports = useMemo(() => AIRPORTS.filter(a => a.country !== "BD"), []);
 
-  const scopedFromAirports = AIRPORTS;
-  const scopedToAirports = AIRPORTS;
+  // Domestic: both FROM and TO must be BD airports
+  // International: FROM is BD, TO is international (or vice versa)
+  const scopedFromAirports = flightScope === "domestic" ? domesticAirports : AIRPORTS;
+  const scopedToAirports = flightScope === "domestic" ? domesticAirports : AIRPORTS;
 
-  // When switching to domestic, reset to BD airports if needed
+  // Filter multi-city airports based on scope
+  const scopedMultiCityAirports = flightScope === "domestic" ? domesticAirports : AIRPORTS;
+
+  // When switching scope, reset airports that don't match
   useEffect(() => {
     if (flightScope === "domestic") {
       if (fromAirport && fromAirport.country !== "BD") setFromAirport(domesticAirports[0]);
       if (toAirport && toAirport.country !== "BD") setToAirport(domesticAirports[1] || null);
+      // Reset multi-city segments to BD airports
+      setMultiCitySegments(prev => prev.map((seg, i) => ({
+        from: seg.from && seg.from.country !== "BD" ? (i === 0 ? domesticAirports[0] : null) : seg.from,
+        to: seg.to && seg.to.country !== "BD" ? null : seg.to,
+        date: seg.date,
+      })));
+    } else {
+      // International: if both are BD, set destination to first international
+      if (fromAirport?.country === "BD" && toAirport?.country === "BD") {
+        setToAirport(null);
+      }
     }
   }, [flightScope]);
 
