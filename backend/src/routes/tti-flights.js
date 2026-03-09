@@ -204,7 +204,7 @@ function normalizeTTIResponse(response, originCode, destinationCode) {
     let totalPrice = 0;
     let currency = 'BDT';
     if (itin.SaleCurrencyAmount) {
-      totalPrice = itin.SaleCurrencyAmount.Amount || itin.SaleCurrencyAmount.Value || 0;
+      totalPrice = itin.SaleCurrencyAmount.TotalAmount || itin.SaleCurrencyAmount.Amount || itin.SaleCurrencyAmount.Value || 0;
       currency = itin.SaleCurrencyAmount.CurrencyCode || 'BDT';
     } else if (fares.length > 0) {
       for (const f of fares) {
@@ -217,10 +217,11 @@ function normalizeTTIResponse(response, originCode, destinationCode) {
 
     const itinSegments = [];
     for (const od of airODs) {
-      const segRefs = od.SegmentReferences || od.Segments || [];
-      for (const segRef of segRefs) {
-        const ref = segRef.Ref || segRef.RefSegment || segRef;
-        const seg = segmentMap[ref] || segmentMap[segRef];
+      // TTI uses AirCoupons (not SegmentReferences)
+      const coupons = od.AirCoupons || od.SegmentReferences || od.Segments || [];
+      for (const coupon of coupons) {
+        const ref = coupon.RefSegment || coupon.Ref || coupon;
+        const seg = segmentMap[ref];
         if (seg) itinSegments.push(seg);
       }
     }
