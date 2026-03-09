@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, MoreHorizontal, Edit2, Trash2, Copy, Eye, Percent, Tag, DollarSign, TrendingDown, TicketCheck, Calendar } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Edit2, Trash2, Copy, Eye, Percent, Tag, DollarSign, TrendingDown, TicketCheck, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getCollection, addToCollection, removeFromCollection, updateInCollection } from "@/lib/local-store";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const defaultDiscounts = [
   { id: "DSC-001", name: "Early Bird Flight Discount", code: "EARLYBIRD25", type: "percentage", value: 25, minOrder: 5000, maxDiscount: 3000, service: "Flights", status: "active", usageCount: 342, usageLimit: 1000, startDate: "2026-01-01", endDate: "2026-06-30" },
