@@ -34,20 +34,27 @@ const HotelResults = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  const params = {
-    location: searchParams.get("location") || undefined,
-    checkIn: searchParams.get("checkIn") || undefined,
-    checkOut: searchParams.get("checkOut") || undefined,
-    guests: searchParams.get("guests") || undefined,
+  const destination = searchParams.get("destination") || searchParams.get("location") || "";
+  const checkIn = searchParams.get("checkIn") || "";
+  const checkOut = searchParams.get("checkOut") || "";
+  const hasRequiredParams = !!destination && !!checkIn && !!checkOut;
+
+  const params = hasRequiredParams ? {
+    location: destination,
+    destination: destination,
+    checkIn,
+    checkOut,
+    guests: searchParams.get("adults") || searchParams.get("guests") || undefined,
+    rooms: searchParams.get("rooms") || undefined,
     sort: sortBy,
     priceMin: priceRange[0],
     priceMax: priceRange[1],
-  };
+  } : undefined;
 
   const { data: rawData, isLoading, error, refetch } = useHotelSearch(params);
   const apiData = (rawData as any) || {};
   const hotels = apiData.data || apiData.hotels || [];
-  const searchMeta = apiData.searchMeta || { total: apiData.total || hotels.length };
+  const searchMeta = apiData.searchMeta || { total: apiData.total || hotels.length, location: destination };
 
   const FilterPanel = () => (
     <div className="space-y-6">
@@ -75,8 +82,10 @@ const HotelResults = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold">{page?.pageTitle ? `${page.pageTitle} - ` : "Hotels in "}{searchMeta.location || 'your destination'}</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{searchMeta.dates || ''} • {hotels.length} properties</p>
+              <h1 className="text-xl sm:text-2xl font-bold">{page?.pageTitle || "Hotel Reservation"} – {destination || "your destination"}</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {checkIn && checkOut ? `${checkIn} → ${checkOut}` : ""} • {hotels.length} properties
+              </p>
             </div>
             <Button variant="outline" size="sm" asChild><Link to="/">Modify Search</Link></Button>
           </div>
@@ -84,6 +93,14 @@ const HotelResults = () => {
       </div>
 
       <div className="container mx-auto px-4 py-6">
+        {!hasRequiredParams ? (
+          <Card><CardContent className="py-16 text-center">
+            <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+            <h2 className="text-lg font-bold mb-2">No Search Criteria</h2>
+            <p className="text-muted-foreground mb-4">Please use the search widget to search for hotels with check-in and check-out dates.</p>
+            <Button asChild><Link to="/">Search Hotels</Link></Button>
+          </CardContent></Card>
+        ) : (
         <div className="flex gap-6">
           <aside className="hidden lg:block w-64 shrink-0">
             <Card className="sticky top-28"><CardContent className="p-5">
@@ -166,6 +183,7 @@ const HotelResults = () => {
             </DataLoader>
           </div>
         </div>
+        )}
       </div>
 
       {showFilters && (
