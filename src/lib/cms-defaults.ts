@@ -234,7 +234,7 @@ export const CMS_PAGE_DEFAULTS: Record<string, CmsPageContent> = {
       subtitle: "Bangladesh's most trusted travel platform since 2018",
       gradient: "from-[hsl(217,91%,50%)] to-[hsl(224,70%,28%)]",
     },
-    storyText: "Founded in 2018 in Dhaka, Seven Trip started with a simple vision: to transform how Bangladeshis book travel. What began as a small team passionate about travel has grown into the country's leading online travel agency, serving over 500,000 happy travellers. We combine cutting-edge technology with deep local expertise to offer flights, hotels, visa processing, and holiday packages — all at the best prices with instant confirmation.",
+    storyText: "Founded in Dhaka as a concern of Evan International, Seven Trip started with a simple vision: to transform how Bangladeshis book travel. What began as a small team passionate about travel has grown into the country's leading online travel agency, serving over 500,000 happy travellers. We combine cutting-edge technology with deep local expertise to offer flights, hotels, visa processing, and holiday packages — all at the best prices with instant confirmation.",
     values: COMPANY_VALUES.map(v => ({ icon: v.icon, title: v.title, desc: v.desc })),
     stats: COMPANY_STATS,
     team: TEAM_MEMBERS,
