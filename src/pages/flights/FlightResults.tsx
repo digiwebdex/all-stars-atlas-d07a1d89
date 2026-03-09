@@ -659,10 +659,18 @@ const FlightResults = () => {
                     <CardContent className="py-12 text-center text-muted-foreground">
                       <Plane className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p className="font-semibold">No flights found</p>
-                      <p className="text-sm mt-1">Try adjusting your filters or search criteria</p>
+                      <p className="text-sm mt-1 max-w-md mx-auto">
+                        {selectedAirlines.length > 0 || stopsFilter !== "all"
+                          ? "Try adjusting your filters or search criteria"
+                          : "No flights available for this route and date. Currently available airlines: Air Astra (Bangladesh domestic & regional routes). More airline integrations (BDFare / Amadeus GDS) coming soon."}
+                      </p>
                       {selectedAirlines.length > 0 || stopsFilter !== "all" ? (
                         <Button variant="outline" size="sm" className="mt-3" onClick={resetFilters}>Clear Filters</Button>
-                      ) : null}
+                      ) : (
+                        <Button variant="outline" size="sm" className="mt-3" asChild>
+                          <Link to="/">Try a Different Route</Link>
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 ) : (
