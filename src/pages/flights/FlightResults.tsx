@@ -510,11 +510,11 @@ const FlightResults = () => {
   );
 
   // Update price range when data loads
-  useMemo(() => {
+  useEffect(() => {
     if (flights.length > 0) {
       setPriceRange([Math.max(0, minPrice - 100), maxPrice]);
     }
-  }, [minPrice, maxPrice]);
+  }, [minPrice, maxPrice, flights.length]);
 
   const toggleAirline = useCallback((a: string) =>
     setSelectedAirlines(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]),
