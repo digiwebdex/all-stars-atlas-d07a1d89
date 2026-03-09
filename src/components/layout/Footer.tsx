@@ -122,11 +122,11 @@ const Footer = React.forwardRef<HTMLElement>((_, ref) => {
             <ul className="space-y-3 sm:space-y-3.5 text-[13px] sm:text-sm text-white/45">
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary/60" />
-                <span>123 Travel Street, Dhaka 1205, Bangladesh</span>
+                <span>Beena Kanon, Flat-4A, House-03, Road-17, Block-E, Banani, Dhaka-1213</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 shrink-0 text-primary/60" />
-                <a href="tel:+8801234567890" className="hover:text-white transition-colors">+880 1234-567890</a>
+                <a href="tel:+8801749373748" className="hover:text-white transition-colors">+880 1749-373748</a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 shrink-0 text-primary/60" />
