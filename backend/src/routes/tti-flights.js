@@ -204,7 +204,7 @@ function normalizeTTIResponse(response, originCode, destinationCode) {
     let totalPrice = 0;
     let currency = 'BDT';
     if (itin.SaleCurrencyAmount) {
-      totalPrice = itin.SaleCurrencyAmount.Amount || itin.SaleCurrencyAmount.Value || 0;
+      totalPrice = itin.SaleCurrencyAmount.TotalAmount || itin.SaleCurrencyAmount.Amount || itin.SaleCurrencyAmount.Value || 0;
       currency = itin.SaleCurrencyAmount.CurrencyCode || 'BDT';
     } else if (fares.length > 0) {
       for (const f of fares) {
