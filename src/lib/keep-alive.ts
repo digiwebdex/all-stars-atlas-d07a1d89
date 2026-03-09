@@ -18,8 +18,10 @@ export function warmUpServer() {
     `${base}/cms/pages/home`,
   ];
 
+  // Fire-and-forget warm-up — suppress all errors silently
   urls.forEach((url) => {
     fetch(url, { method: 'GET', cache: 'no-store', priority: 'low' as any })
-      .catch(() => {}); // silent
+      .then(() => {})
+      .catch(() => {});
   });
 }
