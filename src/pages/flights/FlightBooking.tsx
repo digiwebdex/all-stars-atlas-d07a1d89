@@ -14,6 +14,7 @@ import {
   Plane, ArrowRight, User, Clock, Luggage, Shield, CreditCard,
   UtensilsCrossed, Plus, Briefcase, Users, FileText,
   AlertCircle, CheckCircle2, Timer, AlertTriangle, Package,
+  ScanLine, Search, Share2, Save,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
@@ -21,6 +22,9 @@ import { useAuth } from "@/hooks/useAuth";
 import AuthGateModal from "@/components/AuthGateModal";
 import { api } from "@/lib/api";
 import type { BookingFormField } from "@/lib/cms-defaults";
+import PassportScanner from "@/components/PassportScanner";
+import SearchPassengerModal from "@/components/SearchPassengerModal";
+import ShareItineraryModal from "@/components/ShareItineraryModal";
 
 // ─── Bangladesh domestic airports ───
 const BD_AIRPORTS = ["DAC", "CXB", "CGP", "ZYL", "JSR", "RJH", "SPD", "BZL", "IRD", "TKR"];
@@ -179,6 +183,9 @@ const FlightBooking = () => {
   const [passengers, setPassengers] = useState([{
     title: "", firstName: "", lastName: "", dob: "", nationality: "", passport: "", passportExpiry: "", email: "", phone: "", gender: "", documentCountry: "BD",
   }]);
+  const [passportScanOpen, setPassportScanOpen] = useState(false);
+  const [searchPaxOpen, setSearchPaxOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -280,6 +287,40 @@ const FlightBooking = () => {
   };
 
   const handleContinue = () => { if (validateStep(step)) setStep(step + 1); };
+
+  const handlePassportScan = (data: any) => {
+    const updated = [...passengers];
+    if (data.title) updated[0].title = data.title;
+    if (data.firstName) updated[0].firstName = data.firstName;
+    if (data.lastName) updated[0].lastName = data.lastName;
+    if (data.gender) updated[0].gender = data.gender;
+    if (data.birthDate) updated[0].dob = data.birthDate;
+    if (data.passportNumber) updated[0].passport = data.passportNumber;
+    if (data.expiryDate) updated[0].passportExpiry = data.expiryDate;
+    if (data.country) updated[0].documentCountry = data.country;
+    if (data.birthPlace) updated[0].nationality = data.birthPlace;
+    setPassengers(updated);
+    setFieldErrors({});
+  };
+
+  const handleSelectExistingPax = (t: any) => {
+    const updated = [...passengers];
+    updated[0] = {
+      title: t.title || updated[0].title,
+      firstName: t.firstName || "",
+      lastName: t.lastName || "",
+      dob: t.dob || "",
+      nationality: t.nationality || "",
+      passport: t.passport || "",
+      passportExpiry: t.passportExpiry || "",
+      email: t.email || "",
+      phone: t.phone || "",
+      gender: t.gender || "",
+      documentCountry: t.documentCountry || "BD",
+    };
+    setPassengers(updated);
+    setFieldErrors({});
+  };
 
   const createBooking = async (payLater: boolean) => {
     setBookingLoading(true);
@@ -464,9 +505,19 @@ const FlightBooking = () => {
             {step === 2 && (
               <Card>
                 <CardHeader className="bg-accent/5 border-b border-border">
-                  <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                    <Users className="w-5 h-5 text-accent" /> Enter Traveler Details
-                  </CardTitle>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                      <Users className="w-5 h-5 text-accent" /> Enter Traveler Details
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setPassportScanOpen(true)}>
+                        <ScanLine className="w-3.5 h-3.5 mr-1" /> Passport Scan
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setSearchPaxOpen(true)}>
+                        <Search className="w-3.5 h-3.5 mr-1" /> Saved Passenger
+                      </Button>
+                    </div>
+                  </div>
                   <p className="text-xs text-muted-foreground">Enter details exactly as they appear on your passport/ID</p>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-5">
@@ -821,6 +872,9 @@ const FlightBooking = () => {
       </div>
 
       <AuthGateModal open={authOpen} onOpenChange={setAuthOpen} onAuthenticated={() => { setAuthOpen(false); handleConfirmBooking(); }} title="Sign in to complete your booking" />
+      <PassportScanner open={passportScanOpen} onOpenChange={setPassportScanOpen} onConfirm={handlePassportScan} />
+      <SearchPassengerModal open={searchPaxOpen} onOpenChange={setSearchPaxOpen} onSelect={handleSelectExistingPax} />
+      <ShareItineraryModal open={shareOpen} onOpenChange={setShareOpen} bookingRef={bookingResult?.bookingRef} itinerarySummary={outboundFlight ? `${outboundFlight.origin} → ${outboundFlight.destination}, ${outboundFlight.airline}` : ""} />
     </div>
   );
 };

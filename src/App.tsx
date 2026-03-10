@@ -100,6 +100,8 @@ const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
 const AdminPaymentApprovals = lazy(() => import("@/pages/admin/AdminPaymentApprovals"));
 const AdminDiscounts = lazy(() => import("@/pages/admin/AdminDiscounts"));
 const CMSBookingForms = lazy(() => import("@/pages/admin/cms/CMSBookingForms"));
+const AdminMarkup = lazy(() => import("@/pages/admin/AdminMarkup"));
+const AdminCurrency = lazy(() => import("@/pages/admin/AdminCurrency"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -203,6 +205,8 @@ const App = () => (
                 <Route path="invoices" element={<AdminInvoices />} />
                 <Route path="payment-approvals" element={<AdminPaymentApprovals />} />
                 <Route path="discounts" element={<AdminDiscounts />} />
+                <Route path="markup" element={<AdminMarkup />} />
+                <Route path="currency" element={<AdminCurrency />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
