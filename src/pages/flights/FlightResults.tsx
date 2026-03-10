@@ -146,6 +146,8 @@ const FlightCard = ({
   const toCode = flight.destination || "";
   const flightNo = flight.flightNumber || "";
   const cabin = flight.cabinClass || "Economy";
+  const bookingClass = flight.bookingClass || "";
+  const availableSeats = flight.availableSeats ?? null;
   const duration = flight.duration || "";
   const stops = flight.stops ?? 0;
   const price = flight.price ?? 0;
@@ -160,6 +162,7 @@ const FlightCard = ({
 
   const stopsLabel = stops === 0 ? "Non-Stop" : `${stops} Stop${stops > 1 ? "s" : ""} Flight`;
   const refundLabel = refundable ? "Refundable" : "Partially-Refundable";
+  const cabinDisplay = bookingClass ? `${cabin} - ${bookingClass}` : cabin;
 
   return (
     <Card className={`overflow-hidden transition-all border ${isSelected ? "border-accent ring-2 ring-accent/20 shadow-lg" : isExpanded ? "border-accent/30 shadow-md" : "border-border hover:shadow-md"}`}>
