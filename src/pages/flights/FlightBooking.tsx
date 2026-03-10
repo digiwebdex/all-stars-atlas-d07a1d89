@@ -317,12 +317,7 @@ const FlightBooking = () => {
 
   if (isLoading) return <div className="min-h-screen bg-muted/30 pt-20 lg:pt-28 pb-10"><div className="container mx-auto px-4"><Skeleton className="h-96 w-full rounded-xl" /></div></div>;
 
-  const STEPS = [
-    { label: "Flight Details", icon: Plane },
-    { label: "Passenger Info", icon: Users },
-    { label: "Extras", icon: Plus },
-    { label: "Review & Pay", icon: CreditCard },
-  ];
+  // STEPS already defined above dynamically based on hasRealExtras
 
   // ─── POST-BOOKING SUCCESS ───
   if (bookingComplete && bookingResult) {
