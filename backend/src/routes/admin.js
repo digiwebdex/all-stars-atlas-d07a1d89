@@ -150,9 +150,13 @@ router.get('/bookings', async (req, res) => {
     const data = rows.map(b => ({
       id: b.id, bookingRef: b.booking_ref, bookingType: b.booking_type, status: b.status,
       totalAmount: parseFloat(b.total_amount), currency: b.currency, paymentMethod: b.payment_method,
-      paymentStatus: b.payment_status, details: safeJsonParse(b.details, {}),
+      paymentStatus: b.payment_status, paymentDeadline: b.payment_deadline,
+      details: safeJsonParse(b.details, {}),
+      passengerInfo: safeJsonParse(b.passenger_info, []),
+      contactInfo: safeJsonParse(b.contact_info, {}),
       user: { name: `${b.first_name} ${b.last_name}`, email: b.user_email },
-      bookedAt: b.booked_at,
+      notes: b.notes || '',
+      bookedAt: b.booked_at, updatedAt: b.updated_at,
     }));
     res.json({ data, total: countResult[0].total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(countResult[0].total / parseInt(limit)) });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
@@ -161,17 +165,22 @@ router.get('/bookings', async (req, res) => {
 // PUT /admin/bookings/:id
 router.put('/bookings/:id', async (req, res) => {
   try {
-    const { status, notes } = req.body;
+    const { status, notes, paymentStatus, paymentMethod, totalAmount, passengerInfo, contactInfo, details } = req.body;
     const sets = []; const params = [];
     if (status) { sets.push('status = ?'); params.push(status); }
     if (notes !== undefined) { sets.push('notes = ?'); params.push(notes); }
+    if (paymentStatus) { sets.push('payment_status = ?'); params.push(paymentStatus); }
+    if (paymentMethod) { sets.push('payment_method = ?'); params.push(paymentMethod); }
+    if (totalAmount !== undefined) { sets.push('total_amount = ?'); params.push(totalAmount); }
+    if (passengerInfo !== undefined) { sets.push('passenger_info = ?'); params.push(JSON.stringify(passengerInfo)); }
+    if (contactInfo !== undefined) { sets.push('contact_info = ?'); params.push(JSON.stringify(contactInfo)); }
+    if (details !== undefined) { sets.push('details = ?'); params.push(JSON.stringify(details)); }
     if (sets.length > 0) { params.push(req.params.id); await db.query(`UPDATE bookings SET ${sets.join(', ')} WHERE id = ?`, params); }
     const [rows] = await db.query('SELECT * FROM bookings WHERE id = ?', [req.params.id]);
-    // Notify user of status change
     if (status && rows[0]) {
       notifyBookingStatus(rows[0].user_id, rows[0].booking_ref, status).catch(console.error);
     }
-    res.json(rows[0] ? { id: rows[0].id, bookingRef: rows[0].booking_ref, status: rows[0].status } : {});
+    res.json(rows[0] ? { id: rows[0].id, bookingRef: rows[0].booking_ref, status: rows[0].status, message: 'Booking updated' } : {});
   } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
 });
 
