@@ -188,19 +188,25 @@ router.put('/bookings/:id', async (req, res) => {
 
     let gdsResult = null;
     let gdsError = null;
+    let gdsSkipped = false; // When GDS action is intentionally skipped (e.g., TTI has no ticketing API)
 
     // ── Real GDS actions for flight bookings ──
     if (isFlightBooking && status) {
       const oldStatus = booking.status;
-      console.log(`[Admin GDS] Flight booking update: ${bookingId} | Source: ${flightSource} | PNR: ${gdsPnr} | GDS BookingId: ${gdsBookingId} | Status: ${oldStatus} → ${status}`);
+      const isTTI = flightSource === 'tti' || bookingDetails.outbound?.airlineCode === '2A' || bookingDetails.outbound?.airlineCode === 'S2';
+      console.log(`[Admin GDS] Flight booking update: ${bookingId} | Source: ${flightSource} | TTI: ${isTTI} | PNR: ${gdsPnr} | GDS BookingId: ${gdsBookingId} | Status: ${oldStatus} → ${status}`);
 
       // CONFIRM / TICKETED → Issue ticket via GDS
       if ((status === 'confirmed' || status === 'ticketed') && oldStatus !== 'confirmed' && oldStatus !== 'ticketed') {
         if (gdsPnr || gdsBookingId) {
           console.log(`[Admin GDS] → ISSUE TICKET via ${flightSource || 'unknown'} — PNR: ${gdsPnr} | BookingId: ${gdsBookingId}`);
           try {
-            if (flightSource === 'tti' || bookingDetails.outbound?.airlineCode === '2A' || bookingDetails.outbound?.airlineCode === 'S2') {
-              gdsResult = await ttiFlights.issueTicket({ pnr: gdsPnr, bookingId: gdsBookingId });
+            if (isTTI) {
+              // TTI has NO separate ticketing API — ticket issuance must be done via Air Astra back-office
+              // Allow DB status update but log that GDS ticketing was skipped
+              console.log('[Admin GDS] TTI: No ticketing API available — marking as ticketed locally only');
+              gdsResult = { success: true, ticketNumbers: [], methodUsed: 'manual (TTI has no ticketing API)', skipped: true };
+              gdsSkipped = true;
             } else if (flightSource === 'bdfare') {
               gdsResult = await bdfFlights.issueTicket({ orderId: bdfOrderId, pnr: gdsPnr });
             } else if (flightSource === 'flyhub') {
@@ -235,7 +241,7 @@ router.put('/bookings/:id', async (req, res) => {
         if (gdsPnr || gdsBookingId) {
           console.log(`[Admin] Cancelling via ${flightSource} — PNR: ${gdsPnr}`);
           try {
-            if (flightSource === 'tti' || bookingDetails.outbound?.airlineCode === '2A' || bookingDetails.outbound?.airlineCode === 'S2') {
+            if (isTTI) {
               gdsResult = await ttiFlights.cancelBooking({ pnr: gdsPnr, bookingId: gdsBookingId });
             } else if (flightSource === 'bdfare') {
               gdsResult = await bdfFlights.cancelBooking({ orderId: bdfOrderId, pnr: gdsPnr });
@@ -258,20 +264,36 @@ router.put('/bookings/:id', async (req, res) => {
         }
       }
 
-      // VOID → Void ticket in GDS (TTI supports this)
+      // VOID → Void ticket in GDS
       if (status === 'void' && oldStatus !== 'void') {
-        if (gdsPnr && (flightSource === 'tti' || bookingDetails.outbound?.airlineCode === '2A' || bookingDetails.outbound?.airlineCode === 'S2')) {
-          console.log(`[Admin] Voiding via TTI — PNR: ${gdsPnr}`);
+        if (gdsPnr) {
+          console.log(`[Admin] Voiding via ${flightSource} — PNR: ${gdsPnr}`);
           try {
-            // Get ticket numbers from DB
-            const [tickets] = await db.query('SELECT ticket_no FROM tickets WHERE booking_id = ?', [bookingId]);
-            for (const t of tickets) {
-              const voidResult = await ttiFlights.voidTicket({ pnr: gdsPnr, ticketNumber: t.ticket_no });
-              if (!voidResult.success) {
-                gdsError = (gdsError ? gdsError + '; ' : '') + `Void ${t.ticket_no}: ${voidResult.error}`;
+            if (isTTI) {
+              // Get ticket numbers from DB
+              const [tickets] = await db.query('SELECT ticket_no FROM tickets WHERE booking_id = ?', [bookingId]);
+              if (tickets.length > 0) {
+                for (const t of tickets) {
+                  const voidResult = await ttiFlights.voidTicket({ pnr: gdsPnr, ticketNumber: t.ticket_no });
+                  if (!voidResult.success) {
+                    gdsError = (gdsError ? gdsError + '; ' : '') + `Void ${t.ticket_no}: ${voidResult.error}`;
+                  }
+                }
+              } else {
+                // No tickets in DB — try voiding the PNR directly
+                const voidResult = await ttiFlights.voidTicket({ pnr: gdsPnr, ticketNumber: null });
+                if (!voidResult.success) gdsError = voidResult.error;
               }
+              if (!gdsError) {
+                gdsResult = { success: true };
+                await db.query('UPDATE tickets SET status = ? WHERE booking_id = ?', ['voided', bookingId]);
+              }
+            } else {
+              // Non-TTI void: update tickets locally, GDS void not implemented for other providers
+              await db.query('UPDATE tickets SET status = ? WHERE booking_id = ?', ['voided', bookingId]);
+              gdsResult = { success: true, skipped: true };
+              gdsSkipped = true;
             }
-            await db.query('UPDATE tickets SET status = ? WHERE booking_id = ?', ['voided', bookingId]);
           } catch (err) {
             gdsError = err.message;
           }
