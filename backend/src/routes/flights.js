@@ -131,7 +131,7 @@ router.get('/search', async (req, res) => {
       cabinClass: cabClass || undefined,
     };
 
-    const [dbFlights, ttiFlights, bdfFlights, flyhubFlights] = await Promise.allSettled([
+    const [dbFlights, ttiFlights, bdfFlights, flyhubFlights, sabreFlights] = await Promise.allSettled([
       searchDB({ originCode, destCode, dDate, cabClass, page, limit }),
       ttiSearch(searchParams).catch(err => {
         console.error('TTI search failed (continuing with other providers):', err.message);
@@ -143,6 +143,10 @@ router.get('/search', async (req, res) => {
       }),
       flyhubSearch(searchParams).catch(err => {
         console.error('FlyHub search failed (continuing with other providers):', err.message);
+        return [];
+      }),
+      sabreSearch(searchParams).catch(err => {
+        console.error('Sabre search failed (continuing with other providers):', err.message);
         return [];
       }),
     ]);
@@ -164,6 +168,10 @@ router.get('/search', async (req, res) => {
 
     if (flyhubFlights.status === 'fulfilled') {
       flights.push(...(flyhubFlights.value || []));
+    }
+
+    if (sabreFlights.status === 'fulfilled') {
+      flights.push(...(sabreFlights.value || []));
     }
 
     // Deduplicate flights from multiple providers (same flight number + same departure)
