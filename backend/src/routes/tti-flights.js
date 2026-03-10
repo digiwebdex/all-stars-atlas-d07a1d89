@@ -96,6 +96,45 @@ async function ttiRequest(method, body) {
 }
 
 /**
+ * TTI request in Bare mode (?BodyStyle=Bare) — recommended by TTI Help page
+ * Sends body directly without wrapping in { "request": ... }
+ */
+async function ttiRequestBare(method, body) {
+  const config = await getTTIConfig();
+  if (!config) throw new Error('TTI API not configured');
+
+  const baseUrl = config.url.replace(/\/+$/, '');
+  const urlsToTry = [baseUrl];
+  if (baseUrl.startsWith('http://')) urlsToTry.push(baseUrl.replace('http://', 'https://'));
+  else if (baseUrl.startsWith('https://')) urlsToTry.push(baseUrl.replace('https://', 'http://'));
+
+  let lastError = null;
+  for (const tryUrl of urlsToTry) {
+    const fullUrl = `${tryUrl}/${method}?BodyStyle=Bare`;
+    console.log(`[TTI Bare] → ${method} | URL: ${fullUrl}`);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const res = await fetch(fullUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const responseText = await res.text();
+      console.log(`[TTI Bare] ← ${method} | Status: ${res.status} | Length: ${responseText.length}`);
+      if (!res.ok) { lastError = new Error(`TTI ${method} Bare failed (${res.status}): ${responseText.slice(0, 500)}`); continue; }
+      try {
+        const json = JSON.parse(responseText);
+        return json;
+      } catch (e) { lastError = new Error(`TTI ${method} Bare: invalid JSON`); continue; }
+    } catch (fetchErr) { lastError = fetchErr; continue; }
+  }
+  throw lastError || new Error(`TTI ${method} Bare: all URL attempts failed`);
+}
+
+/**
  * Search flights via TTI SearchFlights endpoint
  */
 async function searchFlights({ origin, destination, departDate, returnDate, adults = 1, children = 0, infants = 0, cabinClass }) {
