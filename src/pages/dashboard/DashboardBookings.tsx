@@ -119,7 +119,7 @@ const BookingDetailDialog = ({ booking, onClose }: { booking: any; onClose: () =
                 <span className="text-sm sm:text-base truncate">Booking: {booking.id}</span>
               </div>
               <Badge className="bg-accent-foreground/20 text-accent-foreground border-0 text-xs w-fit">
-                {booking.status}
+                {displayStatus(booking.status)}
               </Badge>
             </DialogTitle>
           </DialogHeader>
