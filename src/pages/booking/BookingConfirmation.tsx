@@ -56,7 +56,7 @@ const BookingConfirmation = () => {
             aircraft: leg.aircraft || ob.aircraft || "",
             terminal: leg.originTerminal || "",
             arrivalTerminal: leg.destinationTerminal || "",
-            baggage: ob.baggage || "20kg",
+            baggage: ob.baggage || "As per airline policy",
             status: "Confirmed",
             meal: booking.meal || "Meals",
           });
