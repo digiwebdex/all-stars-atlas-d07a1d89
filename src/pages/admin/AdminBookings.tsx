@@ -205,8 +205,8 @@ const AdminBookings = () => {
   };
 
   const handleExport = () => {
-    downloadCSV('bookings', ['ID', 'Customer', 'Email', 'Type', 'Route', 'Date', 'Status', 'Payment', 'Amount'],
-      bookings.map((b: any) => [b.id, b.customer, b.email, b.type, b.route, b.date, b.status, b.paymentStatus, b.amount]));
+    downloadCSV('bookings', ['ID', 'Customer', 'Email', 'Type', 'Route', 'PNR', 'Date', 'Status', 'Payment', 'Amount'],
+      bookings.map((b: any) => [b.id, b.customer, b.email, b.type, b.route, b.pnr, b.date, b.status, b.paymentStatus, b.amount]));
     toast({ title: "Exported", description: "Bookings CSV downloaded" });
   };
 
