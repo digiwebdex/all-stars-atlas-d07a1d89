@@ -655,8 +655,8 @@ const FlightBooking = () => {
               </Card>
             )}
 
-            {/* STEP 4: Review & Booking */}
-            {step === 4 && (
+            {/* REVIEW STEP: Review & Booking */}
+            {step === reviewStep && (
               <>
                 <Card>
                   <CardHeader className="bg-accent/5 border-b border-border">
