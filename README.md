@@ -183,9 +183,10 @@
 ### GDS & API Integrations (All Admin-Panel Configurable)
 | Integration | File | Description |
 |-------------|------|-------------|
-| **TTI/ZENITH (Air Astra)** | `tti-flights.js` | Real-time flight search via Agency ID 10000240 |
+| **TTI/ZENITH (Air Astra)** | `tti-flights.js` | Real-time flight search + booking (PNR creation). Cancel via `Cancel` method. Ticketing = manual (no API). |
 | **BDFare** | `bdf-flights.js` | Bangladesh flight aggregator (US-Bangla, Novoair, Biman) |
 | **FlyHub** | `flyhub-flights.js` | 450+ airline flight aggregator with token auth |
+| **Sabre GDS** | `sabre-flights.js` | International flights via Bargain Finder Max V5 |
 | **HotelBeds** | `hotelbeds.js` | 180,000+ hotels worldwide with SHA256 signature |
 | **Airalo** | `airalo.js` | eSIM for 200+ countries with QR delivery |
 | **SSL Wireless** | `ssl-recharge.js` | Mobile recharge (GP/Robi/BL/TT) + bill payments |
