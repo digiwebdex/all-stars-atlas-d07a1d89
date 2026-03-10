@@ -355,20 +355,20 @@ const FlightCard = ({
                       }) : (
                         /* Single segment without legs */
                         <div className="border border-border rounded-xl overflow-hidden">
-                          <div className="bg-accent/5 px-4 py-2.5 flex items-center gap-3 border-b border-border/50">
-                            {logo && <img src={logo} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
-                            <span className="text-sm font-bold">{flight.airline}</span>
-                            <span className="text-xs text-muted-foreground">{flightNo}</span>
-                            {aircraft && <span className="text-xs text-muted-foreground">· Aircraft: {aircraft}</span>}
+                          <div className="bg-accent/5 px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 border-b border-border/50">
+                            {logo && <img src={logo} alt="" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                            <span className="text-xs sm:text-sm font-bold">{flight.airline}</span>
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">{flightNo}</span>
+                            {aircraft && <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">· Aircraft: {aircraft}</span>}
                           </div>
-                          <div className="grid grid-cols-5 gap-0 text-center divide-x divide-border/50">
-                            <div className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Flight</p><p className="text-sm font-bold">{flightNo}</p></div>
-                            <div className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Departure</p><p className="text-sm font-bold">{departTime}</p><p className="text-[10px] text-muted-foreground">{departDateStr}</p></div>
-                            <div className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Duration</p><p className="text-sm font-bold">{duration}</p></div>
-                            <div className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Arrival</p><p className="text-sm font-bold">{arriveTime}</p><p className="text-[10px] text-muted-foreground">{arriveDateStr}</p></div>
-                            <div className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Baggage</p><p className="text-sm font-bold">{baggage}</p></div>
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-0 text-center divide-x divide-border/50">
+                            <div className="p-2 sm:p-3"><p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium mb-0.5">Flight</p><p className="text-xs sm:text-sm font-bold">{flightNo}</p></div>
+                            <div className="p-2 sm:p-3"><p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium mb-0.5">Departure</p><p className="text-xs sm:text-sm font-bold">{departTime}</p><p className="text-[9px] sm:text-[10px] text-muted-foreground">{departDateStr}</p></div>
+                            <div className="p-2 sm:p-3"><p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium mb-0.5">Arrival</p><p className="text-xs sm:text-sm font-bold">{arriveTime}</p><p className="text-[9px] sm:text-[10px] text-muted-foreground">{arriveDateStr}</p></div>
+                            <div className="p-2 sm:p-3 hidden sm:block"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-0.5">Duration</p><p className="text-sm font-bold">{duration}</p></div>
+                            <div className="p-2 sm:p-3 hidden sm:block"><p className="text-[10px] text-muted-foreground uppercase font-medium mb-0.5">Baggage</p><p className="text-sm font-bold">{baggage}</p></div>
                           </div>
-                          <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-t border-border/50 text-[11px] text-muted-foreground">
+                          <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-muted/20 border-t border-border/50 text-[10px] sm:text-[11px] text-muted-foreground">
                             <span>{fromCode}</span><ArrowRight className="w-3 h-3" /><span>{toCode}</span>
                           </div>
                         </div>
