@@ -597,45 +597,21 @@ const FlightBooking = () => {
               </Card>
             )}
 
-            {/* STEP 3: Extras — Meal, Baggage, Seat Selection */}
-            {step === 3 && (
+            {/* STEP 3: Extras — ONLY when real airline API data is available */}
+            {step === extrasStep && hasRealExtras && (
               <Card>
                 <CardHeader className="bg-accent/5 border-b border-border">
                   <CardTitle className="text-sm sm:text-base flex items-center gap-2">
                     <Plus className="w-5 h-5 text-accent" /> Customize Your Flight
-                    {ancillarySource !== "standard" && (
-                      <Badge className="bg-accent/10 text-accent border-0 text-[9px] ml-2">Live Airline Data</Badge>
-                    )}
+                    <Badge className="bg-accent/10 text-accent border-0 text-[9px] ml-2">Live Airline Data</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-5">
-                  <Tabs defaultValue="seat" className="w-full">
-                    <TabsList className="w-full grid grid-cols-3 mb-4 h-auto">
-                      <TabsTrigger value="seat" className="gap-1 sm:gap-1.5 text-[11px] sm:text-sm py-2"><Armchair className="w-3.5 h-3.5" /><span className="hidden xs:inline">Seat</span><span className="xs:hidden">🪑</span></TabsTrigger>
-                      <TabsTrigger value="baggage" className="gap-1 sm:gap-1.5 text-[11px] sm:text-sm py-2"><Luggage className="w-3.5 h-3.5" /><span className="hidden xs:inline">Baggage</span><span className="xs:hidden">🧳</span></TabsTrigger>
-                      <TabsTrigger value="meal" className="gap-1 sm:gap-1.5 text-[11px] sm:text-sm py-2"><UtensilsCrossed className="w-3.5 h-3.5" /><span className="hidden xs:inline">Meal</span><span className="xs:hidden">🍽️</span></TabsTrigger>
+                  <Tabs defaultValue="baggage" className="w-full">
+                    <TabsList className="w-full grid grid-cols-2 mb-4 h-auto">
+                      <TabsTrigger value="baggage" className="gap-1 sm:gap-1.5 text-[11px] sm:text-sm py-2"><Luggage className="w-3.5 h-3.5" /> Baggage</TabsTrigger>
+                      <TabsTrigger value="meal" className="gap-1 sm:gap-1.5 text-[11px] sm:text-sm py-2"><UtensilsCrossed className="w-3.5 h-3.5" /> Meal</TabsTrigger>
                     </TabsList>
-
-                    {/* ── SEAT SELECTION (Interactive Seat Map) ── */}
-                    <TabsContent value="seat" className="space-y-3">
-                      <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-lg border border-accent/10">
-                        <Armchair className="w-4 h-4 text-accent shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">Select Your Preferred Seat</p>
-                          <p className="text-xs text-muted-foreground">Tap on a seat to assign it to the active passenger</p>
-                        </div>
-                      </div>
-                      <SeatMap
-                        flightNumber={outboundFlight?.flightNumber || ""}
-                        aircraft={outboundFlight?.aircraft || outboundFlight?.legs?.[0]?.aircraft || ""}
-                        cabinClass={outboundFlight?.cabinClass || "Economy"}
-                        passengers={passengers}
-                        selectedSeats={selectedSeats}
-                        onSeatSelect={handleSeatSelect}
-                        onSeatDeselect={handleSeatDeselect}
-                        isDomestic={domestic}
-                      />
-                    </TabsContent>
 
                     {/* ── EXTRA BAGGAGE ── */}
                     <TabsContent value="baggage" className="space-y-3">
@@ -646,13 +622,17 @@ const FlightBooking = () => {
                           <p className="text-xs text-muted-foreground">Your fare includes standard baggage allowance</p>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        {baggageOptions.map(bag => (
-                          <AddOnCard key={bag.id} item={bag} multi
-                            selected={selectedBaggage.includes(bag.id)}
-                            onSelect={() => setSelectedBaggage(prev => prev.includes(bag.id) ? prev.filter(x => x !== bag.id) : [...prev, bag.id])} />
-                        ))}
-                      </div>
+                      {baggageOptions.length > 0 ? (
+                        <div className="space-y-2">
+                          {baggageOptions.map(bag => (
+                            <AddOnCard key={bag.id} item={bag} multi
+                              selected={selectedBaggage.includes(bag.id)}
+                              onSelect={() => setSelectedBaggage(prev => prev.includes(bag.id) ? prev.filter(x => x !== bag.id) : [...prev, bag.id])} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground p-3">No extra baggage options available from this airline.</p>
+                      )}
                     </TabsContent>
 
                     {/* ── MEAL SELECTION ── */}
