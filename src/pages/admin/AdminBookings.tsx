@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, MoreHorizontal, Eye, Edit2, Download, CheckCircle2, Clock, XCircle, Ticket, Loader2,
   Plane, User, Phone, Mail, CreditCard, FileText, AlertTriangle, Save, CalendarDays, MapPin, Shield,
-  Send, Ban, Link2,
+  Send, Ban, Link2, Archive, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminBookings } from "@/hooks/useApiData";
@@ -64,6 +64,7 @@ const AdminBookings = () => {
   const [payLinkEmail, setPayLinkEmail] = useState("");
   const [payLinkName, setPayLinkName] = useState("");
   const [payLinkPlatform, setPayLinkPlatform] = useState("email");
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -170,6 +171,31 @@ const AdminBookings = () => {
     toast({ title: "Exported", description: "Bookings CSV downloaded" });
   };
 
+  const archiveBooking = async (b: any) => {
+    setActionLoading(b.rawId || b.id);
+    try {
+      await api.patch(`/admin/bookings/${b.rawId || b.id}/archive`, { archived: true });
+      toast({ title: "Archived", description: `Booking ${b.id} hidden from dashboards` });
+      qc.invalidateQueries({ queryKey: ["admin-bookings"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to archive", variant: "destructive" });
+    }
+    setActionLoading(null);
+  };
+
+  const deleteBooking = async (b: any) => {
+    setActionLoading(b.rawId || b.id);
+    try {
+      await api.delete(`/admin/bookings/${b.rawId || b.id}`);
+      toast({ title: "Deleted", description: `Booking ${b.id} permanently removed` });
+      qc.invalidateQueries({ queryKey: ["admin-bookings"] });
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to delete", variant: "destructive" });
+    }
+    setActionLoading(null);
+  };
+
   const statCards = [
     { label: "Total Bookings", value: stats.total, icon: Ticket, color: "text-primary", bg: "bg-primary/10" },
     { label: "Confirmed", value: stats.confirmed, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
@@ -252,6 +278,9 @@ const AdminBookings = () => {
                         {!["cancelled", "completed", "refunded", "void", "failed"].includes(b.status) && (
                           <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); updateBooking(b, { status: "cancelled" }); }}><XCircle className="w-4 h-4 mr-2" /> Cancel</DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); archiveBooking(b); }}><Archive className="w-4 h-4 mr-2" /> Archive</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(b); }}><Trash2 className="w-4 h-4 mr-2" /> Delete Permanently</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -681,6 +710,26 @@ const AdminBookings = () => {
               toast({ title: "Pay Link Sent", description: `Payment link sent to ${payLinkEmail}` });
               setSendPayLinkOpen(false);
             }}>Send {payLinkPlatform === "email" ? "Email" : "SMS"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="w-5 h-5" /> Permanently Delete Booking</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-3">
+            <p className="text-sm text-muted-foreground">This will <strong className="text-destructive">permanently delete</strong> booking <strong>{deleteConfirm?.id}</strong> and all related tickets and transactions. This action cannot be undone.</p>
+            <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/20 text-sm">
+              <p><strong>Route:</strong> {deleteConfirm?.route}</p>
+              <p><strong>Customer:</strong> {deleteConfirm?.customer}</p>
+              <p><strong>Status:</strong> {deleteConfirm?.status}</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={!!actionLoading} onClick={() => deleteBooking(deleteConfirm)}>
+              {actionLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete Forever
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

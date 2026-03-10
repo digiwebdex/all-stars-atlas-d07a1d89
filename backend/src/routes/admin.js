@@ -141,7 +141,7 @@ router.delete('/users/:id', async (req, res) => {
 router.get('/bookings', async (req, res) => {
   try {
     const { status, type, search, page = 1, limit = 20 } = req.query;
-    let sql = 'SELECT b.*, u.first_name, u.last_name, u.email as user_email FROM bookings b JOIN users u ON b.user_id = u.id WHERE 1=1';
+    let sql = 'SELECT b.*, u.first_name, u.last_name, u.email as user_email FROM bookings b JOIN users u ON b.user_id = u.id WHERE (b.archived IS NULL OR b.archived = 0)';
     const params = [];
     if (status) { sql += ' AND b.status = ?'; params.push(status); }
     if (type) { sql += ' AND b.booking_type = ?'; params.push(type); }
@@ -337,6 +337,33 @@ router.put('/bookings/:id', async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong', status: 500 });
   }
+});
+
+// PATCH /admin/bookings/:id/archive — soft archive (hide from dashboards)
+router.patch('/bookings/:id/archive', async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const { archived } = req.body; // true to archive, false to unarchive
+    const [rows] = await db.query('SELECT id FROM bookings WHERE id = ?', [bookingId]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Booking not found', status: 404 });
+    await db.query('UPDATE bookings SET archived = ? WHERE id = ?', [archived ? 1 : 0, bookingId]);
+    res.json({ message: archived ? 'Booking archived' : 'Booking unarchived', id: bookingId });
+  } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
+});
+
+// DELETE /admin/bookings/:id — permanent delete
+router.delete('/bookings/:id', async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const [rows] = await db.query('SELECT id, booking_ref FROM bookings WHERE id = ?', [bookingId]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Booking not found', status: 404 });
+    // Delete related records first
+    await db.query('DELETE FROM tickets WHERE booking_id = ?', [bookingId]);
+    await db.query('DELETE FROM transactions WHERE booking_id = ?', [bookingId]);
+    await db.query('DELETE FROM bookings WHERE id = ?', [bookingId]);
+    console.log(`[Admin] Permanently deleted booking ${rows[0].booking_ref} (${bookingId}) by ${req.user.email}`);
+    res.json({ message: 'Booking permanently deleted', id: bookingId, bookingRef: rows[0].booking_ref });
+  } catch (err) { console.error(err); res.status(500).json({ message: 'Something went wrong', status: 500 }); }
 });
 
 // GET /admin/payments
