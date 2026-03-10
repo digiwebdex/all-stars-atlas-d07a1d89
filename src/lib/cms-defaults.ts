@@ -169,6 +169,10 @@ export interface ServiceListingConfig {
   visaSteps?: { icon: string; title: string; desc: string }[];
   visaFeatures?: { icon: string; title: string; desc: string }[];
   holidayIncludes?: { icon: string; label: string }[];
+  holidayFilters?: { value: string; label: string }[];
+  holidayCtaTitle?: string;
+  holidayCtaSubtitle?: string;
+  holidayCtaButton?: string;
   medicalCountries?: { value: string; label: string }[];
   medicalTreatments?: { value: string; label: string }[];
   esimCountries?: { value: string; label: string }[];
