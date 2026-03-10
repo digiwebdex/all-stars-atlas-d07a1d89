@@ -4,9 +4,9 @@ const db = require('../config/db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { notifyBookingConfirm } = require('../services/notify');
 const { searchFlights: ttiSearch, createBooking: ttiCreateBooking } = require('./tti-flights');
-const { searchFlights: bdfSearch } = require('./bdf-flights');
-const { searchFlights: flyhubSearch } = require('./flyhub-flights');
-const { searchFlights: sabreSearch } = require('./sabre-flights');
+const { searchFlights: bdfSearch, createBooking: bdfCreateBooking } = require('./bdf-flights');
+const { searchFlights: flyhubSearch, createBooking: flyhubCreateBooking } = require('./flyhub-flights');
+const { searchFlights: sabreSearch, createBooking: sabreCreateBooking } = require('./sabre-flights');
 
 const router = express.Router();
 
