@@ -73,23 +73,42 @@ const AdminBookings = () => {
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
   });
 
-  const apiBookings = (data as any)?.data?.map((b: any) => ({
-    id: b.bookingRef || b.id, rawId: b.id,
-    customer: b.user?.name || "Unknown", email: b.user?.email || "",
-    type: b.bookingType || "flight",
-    route: b.details?.route || b.details?.destination || b.details?.origin ? `${b.details?.origin || ''} → ${b.details?.destination || ''}` : "—",
-    date: b.bookedAt ? new Date(b.bookedAt).toLocaleDateString('en-GB') : "—",
-    status: b.status, amount: `৳${(b.totalAmount || 0).toLocaleString()}`,
-    rawAmount: b.totalAmount || 0, paymentMethod: b.paymentMethod || "—",
-    paymentStatus: b.paymentStatus || "—",
-    paymentDeadline: b.paymentDeadline,
-    details: b.details || {},
-    passengerInfo: b.passengerInfo || [],
-    contactInfo: b.contactInfo || {},
-    notes: b.notes || "",
-    bookedAt: b.bookedAt,
-    updatedAt: b.updatedAt,
-  })) || [];
+  // Parse passengerInfo safely — it may arrive as a double-stringified JSON string
+  const safeParsePax = (pi: any): any[] => {
+    let parsed = pi;
+    if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch { return []; } }
+    if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch { return []; } }
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object' && parsed.passengers) return parsed.passengers;
+    if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return [parsed];
+    return [];
+  };
+
+  const apiBookings = (data as any)?.data?.map((b: any) => {
+    const paxList = safeParsePax(b.passengerInfo);
+    // Use first passenger name as customer if user name is missing / just email
+    const userName = b.user?.name?.trim() || "";
+    const paxName = paxList.length > 0 ? `${paxList[0].title || ''} ${paxList[0].firstName || paxList[0].first_name || ''} ${paxList[0].lastName || paxList[0].last_name || ''}`.trim() : "";
+    const customer = (userName && userName !== "undefined undefined" && !userName.includes('@')) ? userName : (paxName || userName || "Unknown");
+
+    return {
+      id: b.bookingRef || b.id, rawId: b.id,
+      customer, email: b.user?.email || "",
+      type: b.bookingType || "flight",
+      route: b.details?.route || b.details?.destination || b.details?.origin ? `${b.details?.origin || ''} → ${b.details?.destination || ''}` : "—",
+      date: b.bookedAt ? new Date(b.bookedAt).toLocaleDateString('en-GB') : "—",
+      status: b.status, amount: `৳${(b.totalAmount || 0).toLocaleString()}`,
+      rawAmount: b.totalAmount || 0, paymentMethod: b.paymentMethod || "—",
+      paymentStatus: b.paymentStatus || "—",
+      paymentDeadline: b.paymentDeadline,
+      details: b.details || {},
+      passengerInfo: paxList,
+      contactInfo: b.contactInfo || {},
+      notes: b.notes || "",
+      bookedAt: b.bookedAt,
+      updatedAt: b.updatedAt,
+    };
+  }) || [];
 
   const bookings = apiBookings;
 
@@ -114,23 +133,21 @@ const AdminBookings = () => {
     try {
       const result: any = await api.put(`/admin/bookings/${b.rawId || b.id}`, updates);
 
-      // Show GDS-specific feedback
-      if (result?.gdsAction) {
-        if (result.gdsAction.success) {
-          const tickets = result.gdsAction.ticketNumbers || [];
-          toast({
-            title: "✅ GDS Action Successful",
-            description: tickets.length > 0
-              ? `Booking ${b.id} updated. Ticket(s): ${tickets.join(", ")}`
-              : `Booking ${b.id} updated via GDS successfully.`,
-          });
-        } else if (result.warning) {
-          toast({
-            title: "⚠️ GDS Action Failed",
-            description: result.warning,
-            variant: "destructive",
-          });
-        }
+      // Always check warning first (DB updated but GDS failed)
+      if (result?.warning) {
+        toast({
+          title: "⚠️ Status Updated — GDS Failed",
+          description: result.warning,
+          variant: "destructive",
+        });
+      } else if (result?.gdsAction?.success) {
+        const tickets = result.gdsAction.ticketNumbers || [];
+        toast({
+          title: "✅ GDS Action Successful",
+          description: tickets.length > 0
+            ? `Booking ${b.id} updated. Ticket(s): ${tickets.join(", ")}`
+            : `Booking ${b.id} updated via GDS successfully.`,
+        });
       } else {
         toast({ title: "Updated", description: `Booking ${b.id} updated successfully` });
       }
