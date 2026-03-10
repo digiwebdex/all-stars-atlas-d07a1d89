@@ -92,9 +92,7 @@ const AdminPaymentApprovals = () => {
       qc.invalidateQueries({ queryKey: ['admin', 'payment-approvals'] });
       refetch();
     } catch {
-      // Update locally for mock data
-      setLocalUpdates(prev => ({ ...prev, [id]: "Approved" }));
-      toast({ title: "Payment Approved", description: "Payment has been approved successfully" });
+      toast({ title: "Error", description: "Failed to approve payment", variant: "destructive" });
     } finally {
       setActionLoading(null);
     }
