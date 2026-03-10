@@ -31,7 +31,7 @@ const AdminPaymentApprovals = () => {
   const [rejectNote, setRejectNote] = useState("");
   const [viewPayment, setViewPayment] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [localUpdates, setLocalUpdates] = useState<Record<string, string>>({});
+  
   const { toast } = useToast();
   const qc = useQueryClient();
 
