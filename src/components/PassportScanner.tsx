@@ -281,8 +281,8 @@ const PassportScanner = ({ open, onOpenChange, onConfirm }: PassportScannerProps
             ) : (
               <div className="flex flex-col items-center justify-center text-center py-16 text-muted-foreground">
                 <ScanLine className="w-10 h-10 mb-3 opacity-30" />
-                <p className="text-sm">Upload a passport or NID to extract data</p>
-                <p className="text-xs mt-1">Powered by Google Vision OCR</p>
+                <p className="text-sm">Upload any ID document to extract data</p>
+                <p className="text-xs mt-1">Passport, NID, Driving License — Powered by Google Vision OCR</p>
               </div>
             )}
           </div>
