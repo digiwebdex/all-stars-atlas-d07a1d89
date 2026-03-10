@@ -646,7 +646,7 @@ async function createBooking({ flightData, passengers, contactInfo }) {
   };
 
   console.log('[TTI] Creating booking for', flightData.origin, '→', flightData.destination, 'flight', flightData.flightNumber);
-  console.log('[TTI BOOKING] Has raw itinerary:', !!rawItinerary, '| Has raw fares:', rawFares.length, '| Has raw segments:', rawSegments.length);
+  console.log('[TTI BOOKING] Full FareInfo keys:', Object.keys(fareInfo), '| All segments:', segments.length);
   console.log('[TTI BOOKING] Request payload (truncated):', JSON.stringify(request).substring(0, 3000));
 
   try {
