@@ -21,7 +21,6 @@ import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import DataLoader from "@/components/DataLoader";
 import { downloadCSV } from "@/lib/csv-export";
-import { Textarea } from "@/components/ui/textarea";
 
 const ALL_STATUSES = [
   { value: "on_hold", label: "On Hold", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
