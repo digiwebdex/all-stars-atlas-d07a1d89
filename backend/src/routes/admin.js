@@ -10,6 +10,9 @@ const ttiFlights = require('./tti-flights');
 const bdfFlights = require('./bdf-flights');
 const flyhubFlights = require('./flyhub-flights');
 const sabreFlights = require('./sabre-flights');
+const galileoFlights = require('./galileo-flights');
+const ndcFlights = require('./ndc-flights');
+const lccFlights = require('./lcc-flights');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
