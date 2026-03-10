@@ -713,6 +713,26 @@ const AdminBookings = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="w-5 h-5" /> Permanently Delete Booking</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-3">
+            <p className="text-sm text-muted-foreground">This will <strong className="text-destructive">permanently delete</strong> booking <strong>{deleteConfirm?.id}</strong> and all related tickets and transactions. This action cannot be undone.</p>
+            <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/20 text-sm">
+              <p><strong>Route:</strong> {deleteConfirm?.route}</p>
+              <p><strong>Customer:</strong> {deleteConfirm?.customer}</p>
+              <p><strong>Status:</strong> {deleteConfirm?.status}</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={!!actionLoading} onClick={() => deleteBooking(deleteConfirm)}>
+              {actionLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete Forever
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
