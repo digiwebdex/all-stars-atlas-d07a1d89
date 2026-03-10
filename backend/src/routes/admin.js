@@ -10,6 +10,9 @@ const ttiFlights = require('./tti-flights');
 const bdfFlights = require('./bdf-flights');
 const flyhubFlights = require('./flyhub-flights');
 const sabreFlights = require('./sabre-flights');
+const galileoFlights = require('./galileo-flights');
+const ndcFlights = require('./ndc-flights');
+const lccFlights = require('./lcc-flights');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
@@ -566,10 +569,23 @@ router.put('/settings', async (req, res) => {
         'INSERT INTO system_settings (setting_key, setting_value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()',
         [settingKey, settingValue, settingValue]
       );
-      // Clear TTI config cache if it's the TTI integration
-      if (integration === 'tti_astra') {
-        try { const { clearTTIConfigCache } = require('./tti-flights'); clearTTIConfigCache(); } catch {}
-      }
+      // Clear provider config caches when API settings change
+      const cacheClears = {
+        tti_astra: () => { try { ttiFlights.clearTTIConfigCache?.(); } catch {} },
+        bdfare: () => { try { bdfFlights.clearBDFareConfigCache?.(); } catch {} },
+        flyhub: () => { try { flyhubFlights.clearFlyHubConfigCache?.(); } catch {} },
+        sabre: () => { try { sabreFlights.clearSabreConfigCache?.(); } catch {} },
+        galileo: () => { try { galileoFlights.clearGalileoConfigCache?.(); } catch {} },
+        ndc_gateway: () => { try { ndcFlights.clearNDCConfigCache?.(); } catch {} },
+        air_arabia: () => { try { lccFlights.clearLCCConfigCache?.('air_arabia'); } catch {} },
+        indigo_ndc: () => { try { lccFlights.clearLCCConfigCache?.('indigo_ndc'); } catch {} },
+        salam_air: () => { try { lccFlights.clearLCCConfigCache?.('salam_air'); } catch {} },
+        airasia: () => { try { lccFlights.clearLCCConfigCache?.('airasia'); } catch {} },
+        novoair: () => { try { lccFlights.clearLCCConfigCache?.('novoair'); } catch {} },
+        flyadeal: () => { try { lccFlights.clearLCCConfigCache?.('flyadeal'); } catch {} },
+        flynas: () => { try { lccFlights.clearLCCConfigCache?.('flynas'); } catch {} },
+      };
+      if (cacheClears[integration]) cacheClears[integration]();
       return res.json({ message: `${integration} config saved` });
     }
 
