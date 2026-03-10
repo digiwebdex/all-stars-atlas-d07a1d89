@@ -385,17 +385,15 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
 
       if (odSegments.length === 0) continue;
 
-      // Also extract seats/baggage from segment-level data
+      // ── Extract seats from Segments[].BookingClasses[].Quantity ──
+      // TTI puts available seat count in the BookingClasses array on each Segment
       for (const seg of odSegments) {
-        const segSeats = seg.AvailableSeats ?? seg.SeatsAvailable ?? seg.NoOfSeatAvailable ?? null;
-        if (segSeats !== null && typeof segSeats === 'number' && segSeats < minAvailableSeats) {
-          minAvailableSeats = segSeats;
-        }
-        if (!checkedBaggage && seg.BaggageAllowance) {
-          const bag = seg.BaggageAllowance;
-          if (typeof bag === 'string') checkedBaggage = bag;
-          else if (bag.Weight) checkedBaggage = `${bag.Weight}${bag.WeightUnit || 'kg'}`;
-          else if (bag.Pieces) checkedBaggage = `${bag.Pieces} piece${bag.Pieces > 1 ? 's' : ''}`;
+        const bookingClasses = seg.BookingClasses || [];
+        for (const bc of bookingClasses) {
+          const qty = bc.Quantity ?? bc.AvailableSeats ?? bc.SeatsAvailable ?? null;
+          if (qty !== null && typeof qty === 'number' && qty < minAvailableSeats) {
+            minAvailableSeats = qty;
+          }
         }
       }
 
