@@ -180,16 +180,31 @@ const FlightBooking = () => {
   const [ancillaryLoading, setAncillaryLoading] = useState(false);
   const hasRealExtras = ancillarySource !== "none" && ancillarySource !== "standard";
 
-  const [passengers, setPassengers] = useState([{
-    title: "", firstName: "", lastName: "", dob: "", nationality: "", passport: "", passportExpiry: "", email: "", phone: "", gender: "", documentCountry: "BD",
-  }]);
-  const [passportScanOpen, setPassportScanOpen] = useState(false);
-  const [searchPaxOpen, setSearchPaxOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-
+  // Read passenger counts from URL
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const locationState = location.state as any;
+
+  const adultCount = parseInt(searchParams.get("adults") || "1");
+  const childCount = parseInt(searchParams.get("children") || "0");
+  const infantCount = parseInt(searchParams.get("infants") || "0");
+  const searchCabin = searchParams.get("cabin") || "economy";
+  const totalPaxCount = adultCount + childCount + infantCount;
+
+  // Build passenger type labels
+  const paxTypes: { type: "adult" | "child" | "infant"; label: string }[] = [];
+  for (let i = 0; i < adultCount; i++) paxTypes.push({ type: "adult", label: `Adult ${adultCount > 1 ? i + 1 : ""}`.trim() });
+  for (let i = 0; i < childCount; i++) paxTypes.push({ type: "child", label: `Child ${childCount > 1 ? i + 1 : ""}`.trim() });
+  for (let i = 0; i < infantCount; i++) paxTypes.push({ type: "infant", label: `Infant ${infantCount > 1 ? i + 1 : ""}`.trim() });
+
+  const emptyPax = () => ({ title: "", firstName: "", lastName: "", dob: "", nationality: "", passport: "", passportExpiry: "", email: "", phone: "", gender: "", documentCountry: "BD" });
+
+  const [passengers, setPassengers] = useState(() => paxTypes.map(() => emptyPax()));
+  const [passportScanOpen, setPassportScanOpen] = useState(false);
+  const [searchPaxOpen, setSearchPaxOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [activePaxIndex, setActivePaxIndex] = useState(0);
+
   const isRoundTrip = searchParams.get("roundTrip") === "true" || !!locationState?.returnFlight;
 
   const outboundFlight = locationState?.outboundFlight || null;
@@ -238,16 +253,18 @@ const FlightBooking = () => {
 
   const mealCost = mealOptions.find(m => m.id === selectedMeal)?.price || 0;
   const baggageCost = selectedBaggage.reduce((sum, id) => sum + (baggageOptions.find(b => b.id === id)?.price || 0), 0);
-  const addOnTotal = mealCost + baggageCost;
+  const addOnTotal = (mealCost + baggageCost) * totalPaxCount;
   const outboundPrice = outboundFlight?.price || 0;
   const returnPrice = returnFlight?.price || 0;
   const outboundBaseFare = outboundFlight?.baseFare ?? outboundPrice;
   const returnBaseFare = returnFlight?.baseFare ?? returnPrice;
-  const baseFare = outboundBaseFare + returnBaseFare;
+  const perPaxBaseFare = outboundBaseFare + returnBaseFare;
+  const baseFare = perPaxBaseFare * totalPaxCount;
   // Use real tax data from GDS response; only fall back to calculation if unavailable
   const outboundTaxes = outboundFlight?.taxes ?? 0;
   const returnTaxes = returnFlight?.taxes ?? 0;
-  const taxes = (outboundTaxes + returnTaxes) > 0 ? (outboundTaxes + returnTaxes) : Math.round(baseFare * 0.12);
+  const perPaxTaxes = (outboundTaxes + returnTaxes) > 0 ? (outboundTaxes + returnTaxes) : Math.round(perPaxBaseFare * 0.12);
+  const taxes = perPaxTaxes * totalPaxCount;
   const serviceCharge = outboundFlight?.serviceCharge ?? 0;
   const grandTotal = baseFare + taxes + serviceCharge + addOnTotal;
 
@@ -274,20 +291,23 @@ const FlightBooking = () => {
     const errors: Record<string, string> = {};
     if (currentStep === 1 && !outboundFlight) { toast({ title: "No Flight Selected", description: "Please go back and select a flight.", variant: "destructive" }); return false; }
     if (currentStep === 2) {
-      const p = passengers[0];
-      if (!p.title) errors.title = "Title is required";
-      if (!p.firstName?.trim()) errors.firstName = "First name is required";
-      if (!p.lastName?.trim()) errors.lastName = "Last name is required";
-      if (!p.dob) errors.dob = "Date of birth is required";
-      if (!p.nationality?.trim()) errors.nationality = "Nationality is required";
-      if (!p.email?.trim()) errors.email = "Email is required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) errors.email = "Invalid email format";
-      if (!p.phone?.trim()) errors.phone = "Phone number is required";
-      if (p.firstName && p.firstName.trim().length < 2) errors.firstName = "First name too short";
-      if (p.lastName && p.lastName.trim().length < 2) errors.lastName = "Last name too short";
-      if (p.dob) { const dobDate = new Date(p.dob); if (dobDate >= new Date()) errors.dob = "Date of birth must be in the past"; }
-      if (!domestic && !p.passport?.trim()) errors.passport = "Passport required for international flights";
-      if (p.passport && p.passport.trim().length > 0 && p.passport.trim().length < 5) errors.passport = "Invalid passport number";
+      for (let pi = 0; pi < passengers.length; pi++) {
+        const p = passengers[pi];
+        const paxLabel = paxTypes[pi]?.label || `Passenger ${pi + 1}`;
+        if (!p.title) { errors[`title_${pi}`] = `${paxLabel}: Title is required`; }
+        if (!p.firstName?.trim()) { errors[`firstName_${pi}`] = `${paxLabel}: First name is required`; }
+        if (!p.lastName?.trim()) { errors[`lastName_${pi}`] = `${paxLabel}: Last name is required`; }
+        if (!p.dob) { errors[`dob_${pi}`] = `${paxLabel}: Date of birth is required`; }
+        if (!p.nationality?.trim()) { errors[`nationality_${pi}`] = `${paxLabel}: Nationality is required`; }
+        if (pi === 0 && !p.email?.trim()) { errors.email = "Email is required"; }
+        else if (pi === 0 && p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) { errors.email = "Invalid email format"; }
+        if (pi === 0 && !p.phone?.trim()) { errors.phone = "Phone number is required"; }
+        if (p.firstName && p.firstName.trim().length < 2) { errors[`firstName_${pi}`] = `${paxLabel}: First name too short`; }
+        if (p.lastName && p.lastName.trim().length < 2) { errors[`lastName_${pi}`] = `${paxLabel}: Last name too short`; }
+        if (p.dob) { const dobDate = new Date(p.dob); if (dobDate >= new Date()) errors[`dob_${pi}`] = `${paxLabel}: Date of birth must be in the past`; }
+        if (!domestic && !p.passport?.trim()) { errors[`passport_${pi}`] = `${paxLabel}: Passport required for international flights`; }
+        if (p.passport && p.passport.trim().length > 0 && p.passport.trim().length < 5) { errors[`passport_${pi}`] = `${paxLabel}: Invalid passport number`; }
+      }
       if (Object.keys(errors).length > 0) { setFieldErrors(errors); toast({ title: "Missing Passenger Info", description: Object.values(errors)[0], variant: "destructive" }); return false; }
     }
     setFieldErrors({}); return true;
@@ -297,21 +317,20 @@ const FlightBooking = () => {
 
   const handlePassportScan = (data: any) => {
     const updated = [...passengers];
+    const pi = activePaxIndex;
     if (data.title) {
-      // Normalize OCR title (e.g. "MR" -> "Mr", "MS" -> "Ms") to match Select values
       const titleMap: Record<string, string> = { MR: "Mr", MRS: "Mrs", MS: "Ms", MISS: "Miss", MASTER: "Master" };
-      updated[0].title = titleMap[data.title.toUpperCase()] || data.title;
+      updated[pi].title = titleMap[data.title.toUpperCase()] || data.title;
     }
-    if (data.firstName) updated[0].firstName = data.firstName;
-    if (data.lastName) updated[0].lastName = data.lastName;
-    if (data.gender) updated[0].gender = data.gender;
-    if (data.birthDate) updated[0].dob = data.birthDate;
-    if (data.passportNumber) updated[0].passport = data.passportNumber;
-    if (data.expiryDate) updated[0].passportExpiry = data.expiryDate;
+    if (data.firstName) updated[pi].firstName = data.firstName;
+    if (data.lastName) updated[pi].lastName = data.lastName;
+    if (data.gender) updated[pi].gender = data.gender;
+    if (data.birthDate) updated[pi].dob = data.birthDate;
+    if (data.passportNumber) updated[pi].passport = data.passportNumber;
+    if (data.expiryDate) updated[pi].passportExpiry = data.expiryDate;
     if (data.country) {
-      updated[0].documentCountry = data.country;
-      // Use country as nationality if not already set
-      if (!updated[0].nationality) updated[0].nationality = data.country;
+      updated[pi].documentCountry = data.country;
+      if (!updated[pi].nationality) updated[pi].nationality = data.country;
     }
     setPassengers(updated);
     setFieldErrors({});
@@ -319,16 +338,17 @@ const FlightBooking = () => {
 
   const handleSelectExistingPax = (t: any) => {
     const updated = [...passengers];
-    updated[0] = {
-      title: t.title || updated[0].title,
+    const pi = activePaxIndex;
+    updated[pi] = {
+      title: t.title || updated[pi].title,
       firstName: t.firstName || "",
       lastName: t.lastName || "",
       dob: t.dob || "",
       nationality: t.nationality || "",
       passport: t.passport || "",
       passportExpiry: t.passportExpiry || "",
-      email: t.email || "",
-      phone: t.phone || "",
+      email: t.email || updated[pi].email,
+      phone: t.phone || updated[pi].phone,
       gender: t.gender || "",
       documentCountry: t.documentCountry || "BD",
     };
@@ -359,8 +379,8 @@ const FlightBooking = () => {
   };
 
   const handleConfirmBooking = () => {
-    const p = passengers[0];
-    if (!p.firstName || !p.lastName) { toast({ title: "Missing Info", description: "Please fill in all passenger details.", variant: "destructive" }); setStep(2); return; }
+    const allFilled = passengers.every(p => p.firstName && p.lastName);
+    if (!allFilled) { toast({ title: "Missing Info", description: "Please fill in all passenger details.", variant: "destructive" }); setStep(2); return; }
     if (!agreedTerms) { toast({ title: "Terms Required", description: "Please agree to the Terms & Conditions.", variant: "destructive" }); return; }
     if (!isAuthenticated) { setAuthOpen(true); return; }
     if (isBiman) {
@@ -524,11 +544,11 @@ const FlightBooking = () => {
                       <Users className="w-5 h-5 text-accent" /> Enter Traveler Details
                     </CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setPassportScanOpen(true)}>
+                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => { setActivePaxIndex(0); setPassportScanOpen(true); }}>
                         <ScanLine className="w-3.5 h-3.5 mr-1" /> Passport Scan
                       </Button>
                       {isAuthenticated && (
-                        <Button variant="outline" size="sm" className="text-xs h-8 border-accent/30 text-accent hover:bg-accent/10" onClick={() => setSearchPaxOpen(true)}>
+                        <Button variant="outline" size="sm" className="text-xs h-8 border-accent/30 text-accent hover:bg-accent/10" onClick={() => { setActivePaxIndex(0); setSearchPaxOpen(true); }}>
                           <Search className="w-3.5 h-3.5 mr-1" /> Saved Passenger
                         </Button>
                       )}
@@ -539,20 +559,34 @@ const FlightBooking = () => {
                 <CardContent className="p-3 sm:p-5">
                   {passengers.map((pax, pi) => (
                     <div key={pi} className="space-y-3 sm:space-y-4">
-                      {pi > 0 && <Separator className="my-4" />}
-                      <Badge variant="outline" className="text-xs mb-3">Adult Traveler {pi + 1}</Badge>
+                      {pi > 0 && <Separator className="my-5" />}
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-xs mb-3">{paxTypes[pi]?.label || `Passenger ${pi + 1}`} Traveler</Badge>
+                        {pi > 0 && (
+                          <div className="flex gap-2 mb-3">
+                            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setActivePaxIndex(pi); setPassportScanOpen(true); }}>
+                              <ScanLine className="w-3 h-3 mr-1" /> Scan
+                            </Button>
+                            {isAuthenticated && (
+                              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setActivePaxIndex(pi); setSearchPaxOpen(true); }}>
+                                <Search className="w-3 h-3 mr-1" /> Saved
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Row 1: Title + Gender + DOB + Nationality */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                         <div className="space-y-1.5">
-                          <Label className={`text-xs sm:text-sm ${fieldErrors.title ? "text-destructive" : ""}`}>Title *</Label>
+                          <Label className={`text-xs sm:text-sm ${fieldErrors[`title_${pi}`] ? "text-destructive" : ""}`}>Title *</Label>
                           <Select value={pax.title} onValueChange={(v) => {
                             const updated = [...passengers]; updated[pi].title = v;
                             if (v === "Mr" || v === "Master") updated[pi].gender = "Male";
                             else updated[pi].gender = "Female";
-                            setPassengers(updated); setFieldErrors(prev => { const n = {...prev}; delete n.title; return n; });
+                            setPassengers(updated); setFieldErrors(prev => { const n = {...prev}; delete n[`title_${pi}`]; return n; });
                           }}>
-                            <SelectTrigger className={`h-10 sm:h-11 ${fieldErrors.title ? "border-destructive ring-destructive/20 ring-2" : ""}`}><SelectValue placeholder="Title" /></SelectTrigger>
+                            <SelectTrigger className={`h-10 sm:h-11 ${fieldErrors[`title_${pi}`] ? "border-destructive ring-destructive/20 ring-2" : ""}`}><SelectValue placeholder="Title" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Mr">Mr</SelectItem><SelectItem value="Mrs">Mrs</SelectItem>
                               <SelectItem value="Ms">Ms</SelectItem><SelectItem value="Master">Master</SelectItem><SelectItem value="Miss">Miss</SelectItem>
@@ -833,7 +867,7 @@ const FlightBooking = () => {
                 </Button>
               ) : (
                 <Button className="font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg" onClick={handleConfirmBooking} disabled={bookingLoading}>
-                  {bookingLoading ? "Processing..." : <><CheckCircle2 className="w-4 h-4 mr-1" /> INSTANT PURCHASE ৳{grandTotal.toLocaleString()}</>}
+                  {bookingLoading ? "Processing..." : <><CheckCircle2 className="w-4 h-4 mr-1" /> Book Now ৳{grandTotal.toLocaleString()}</>}
                 </Button>
               )}
             </div>
@@ -850,30 +884,33 @@ const FlightBooking = () => {
               <CardContent className="p-3 sm:p-4 space-y-3 text-sm">
                 <div className="space-y-1.5">
                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Fare/Pax Type</p>
+                  {totalPaxCount > 1 && (
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Passengers</span><span className="font-semibold">{adultCount > 0 ? `${adultCount} Adult` : ""}{childCount > 0 ? `, ${childCount} Child` : ""}{infantCount > 0 ? `, ${infantCount} Infant` : ""}</span></div>
+                  )}
                   {isRoundTrip ? (
                     <>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Outbound</span><span className="font-semibold">৳{outboundPrice.toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Return</span><span className="font-semibold">৳{returnPrice.toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Outbound{totalPaxCount > 1 ? ` × ${totalPaxCount}` : ""}</span><span className="font-semibold">৳{(outboundPrice * totalPaxCount).toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Return{totalPaxCount > 1 ? ` × ${totalPaxCount}` : ""}</span><span className="font-semibold">৳{(returnPrice * totalPaxCount).toLocaleString()}</span></div>
                       <Separator />
                     </>
                   ) : null}
-                  <div className="flex justify-between"><span className="text-muted-foreground">Base Fare</span><span className="font-semibold">৳{baseFare.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-semibold">৳{taxes.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Base Fare{totalPaxCount > 1 ? ` × ${totalPaxCount}` : ""}</span><span className="font-semibold">৳{baseFare.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tax{totalPaxCount > 1 ? ` × ${totalPaxCount}` : ""}</span><span className="font-semibold">৳{taxes.toLocaleString()}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Service Charge</span><span className="font-semibold">৳{serviceCharge}</span></div>
                 </div>
 
                 {addOnTotal > 0 && (
                   <>
                     <Separator />
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Add-ons</p>
-                    {mealCost > 0 && <div className="flex justify-between text-xs"><span className="text-muted-foreground">{mealOptions.find(m => m.id === selectedMeal)?.name}</span><span>৳{mealCost.toLocaleString()}</span></div>}
-                    {baggageCost > 0 && selectedBaggage.map(id => { const bag = baggageOptions.find(b => b.id === id); return bag ? <div key={id} className="flex justify-between text-xs"><span className="text-muted-foreground">{bag.name}</span><span>৳{bag.price.toLocaleString()}</span></div> : null; })}
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Add-ons{totalPaxCount > 1 ? ` × ${totalPaxCount}` : ""}</p>
+                    {mealCost > 0 && <div className="flex justify-between text-xs"><span className="text-muted-foreground">{mealOptions.find(m => m.id === selectedMeal)?.name}</span><span>৳{(mealCost * totalPaxCount).toLocaleString()}</span></div>}
+                    {baggageCost > 0 && selectedBaggage.map(id => { const bag = baggageOptions.find(b => b.id === id); return bag ? <div key={id} className="flex justify-between text-xs"><span className="text-muted-foreground">{bag.name}</span><span>৳{(bag.price * totalPaxCount).toLocaleString()}</span></div> : null; })}
                   </>
                 )}
 
                 <Separator />
                 <div className="flex justify-between text-base"><span className="font-bold">Total Payable</span><span className="font-black text-accent">৳{grandTotal.toLocaleString()}</span></div>
-                {isRoundTrip && <p className="text-[10px] text-muted-foreground text-center">Round-trip fare for 1 passenger</p>}
+                <p className="text-[10px] text-muted-foreground text-center">{isRoundTrip ? "Round-trip" : "One-way"} fare for {totalPaxCount} passenger{totalPaxCount > 1 ? "s" : ""}{searchCabin !== "economy" ? ` · ${searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1)}` : ""}</p>
 
                 {!isBiman && deadlineInfo && step === reviewStep && (
                   <>

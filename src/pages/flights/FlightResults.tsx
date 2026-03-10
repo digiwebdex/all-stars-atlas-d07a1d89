@@ -110,6 +110,7 @@ const FlightCard = ({
   selectionMode?: boolean; isSelected?: boolean; onSelect?: () => void;
 }) => {
   const cardNavigate = useNavigate();
+  const [cardSearchParams] = useSearchParams();
   const logo = getAirlineLogo(flight.airlineCode);
   const departTime = formatTime(flight.departureTime);
   const arriveTime = formatTime(flight.arrivalTime);
@@ -239,7 +240,7 @@ const FlightCard = ({
                 {isSelected ? <><Check className="w-3.5 h-3.5 mr-1" /> Selected</> : "Select Flight"}
               </Button>
             ) : (
-              <Button size="sm" className="font-bold h-9 px-5 rounded-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => cardNavigate(`/flights/book`, { state: { outboundFlight: flight } })}>
+              <Button size="sm" className="font-bold h-9 px-5 rounded-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => cardNavigate(`/flights/book?adults=${cardSearchParams.get("adults") || "1"}&children=${cardSearchParams.get("children") || "0"}&infants=${cardSearchParams.get("infants") || "0"}&cabin=${cardSearchParams.get("cabin") || "economy"}`, { state: { outboundFlight: flight } })}>
                 View Prices <ChevronDown className="w-3.5 h-3.5 ml-1" />
               </Button>
             )}
@@ -484,16 +485,19 @@ const FlightResults = () => {
   const departDate = searchParams.get("depart") || "";
   const returnDate = searchParams.get("return") || "";
   const adults = searchParams.get("adults") || "1";
-  const cabinClass = searchParams.get("class") || searchParams.get("cabin") || "";
+  const children = searchParams.get("children") || "0";
+  const infants = searchParams.get("infants") || "0";
+  const cabinClass = searchParams.get("cabin") || searchParams.get("class") || "";
+  const totalPax = parseInt(adults) + parseInt(children) + parseInt(infants);
   const hasRequiredParams = !!fromCode && !!toCode && !!departDate;
   const isRoundTrip = !!returnDate;
 
   const params = hasRequiredParams ? {
     from: fromCode, to: toCode, date: departDate,
     return: returnDate || undefined, adults,
-    children: searchParams.get("children") || undefined,
-    infants: searchParams.get("infants") || undefined,
-    class: cabinClass || undefined,
+    children: children !== "0" ? children : undefined,
+    infants: infants !== "0" ? infants : undefined,
+    cabinClass: cabinClass || undefined,
   } : undefined;
 
   const { data: rawData, isLoading, error, refetch } = useFlightSearch(params);
@@ -541,7 +545,7 @@ const FlightResults = () => {
 
   const handleBookRoundTrip = () => {
     if (!selectedOutbound || !selectedReturn) return;
-    navigate(`/flights/book?roundTrip=true`, { state: { outboundFlight: selectedOutbound, returnFlight: selectedReturn } });
+    navigate(`/flights/book?roundTrip=true&adults=${adults}&children=${children}&infants=${infants}&cabin=${cabinClass || "economy"}`, { state: { outboundFlight: selectedOutbound, returnFlight: selectedReturn } });
   };
 
   const roundTripTotal = (selectedOutbound?.price || 0) + (selectedReturn?.price || 0);
@@ -558,7 +562,7 @@ const FlightResults = () => {
                 {isRoundTrip && <Badge className="bg-accent-foreground/20 text-accent-foreground border-0 text-[10px] ml-2">Round Trip</Badge>}
               </h1>
               <p className="text-sm text-accent-foreground/80 mt-1">
-                {departDate}{returnDate ? ` – ${returnDate}` : ""} · {adults} Passenger(s) · <strong className="text-accent-foreground">{flights.length} flights found</strong>
+                {departDate}{returnDate ? ` – ${returnDate}` : ""} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-accent-foreground">{flights.length} flights found</strong>
                 {sources.tti > 0 && <span className="text-accent-foreground/90 ml-1">({sources.tti} Air Astra)</span>}
                 {sources.sabre > 0 && <span className="text-accent-foreground/90 ml-1">({sources.sabre} Sabre)</span>}
                 {sources.flyhub > 0 && <span className="text-accent-foreground/90 ml-1">({sources.flyhub} FlyHub)</span>}
