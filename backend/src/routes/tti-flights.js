@@ -629,10 +629,9 @@ async function createBooking({ flightData, passengers, contactInfo }) {
       // ── NameElement: CRITICAL — TTI uses this to determine if passenger is "named" ──
       // Without NameElement populated, TTI treats the passenger as an "unnamed group"
       NameElement: {
-        Title: (p.title || 'Mr').toUpperCase(),
-        FirstName: (p.firstName || '').toUpperCase(),
-        LastName: (p.lastName || '').toUpperCase(),
-        GivenName: (p.firstName || '').toUpperCase(),
+        CivilityCode: (p.title || 'Mr').toUpperCase(),
+        Firstname: (p.firstName || '').toUpperCase(),
+        Middlename: null,
         Surname: (p.lastName || '').toUpperCase(),
         Extensions: null,
       },
