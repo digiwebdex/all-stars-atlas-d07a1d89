@@ -429,6 +429,14 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
 
       const bookingClass = fareDetails[0]?.bookingClass || '';
 
+      // Collect the raw segments used by this OD for booking
+      const rawOdSegments = [];
+      for (const coupon of coupons) {
+        const ref = coupon.RefSegment || coupon.Ref || coupon;
+        const seg = segmentMap[ref];
+        if (seg) rawOdSegments.push(seg);
+      }
+
       flights.push({
         id: `tti-${itin.Ref}-${direction}`,
         source: 'tti',
@@ -466,6 +474,10 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
         cancellationPolicy: cancellationPolicy,
         dateChangePolicy: dateChangePolicy,
         _ttiItineraryRef: itin.Ref,
+        // ── Raw TTI data needed for CreateBooking ──
+        _ttiRawItinerary: itin,
+        _ttiRawFares: fares,
+        _ttiRawSegments: rawOdSegments,
       });
     }
   }
