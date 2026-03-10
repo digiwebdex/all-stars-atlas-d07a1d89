@@ -96,6 +96,45 @@ async function ttiRequest(method, body) {
 }
 
 /**
+ * TTI request in Bare mode (?BodyStyle=Bare) — recommended by TTI Help page
+ * Sends body directly without wrapping in { "request": ... }
+ */
+async function ttiRequestBare(method, body) {
+  const config = await getTTIConfig();
+  if (!config) throw new Error('TTI API not configured');
+
+  const baseUrl = config.url.replace(/\/+$/, '');
+  const urlsToTry = [baseUrl];
+  if (baseUrl.startsWith('http://')) urlsToTry.push(baseUrl.replace('http://', 'https://'));
+  else if (baseUrl.startsWith('https://')) urlsToTry.push(baseUrl.replace('https://', 'http://'));
+
+  let lastError = null;
+  for (const tryUrl of urlsToTry) {
+    const fullUrl = `${tryUrl}/${method}?BodyStyle=Bare`;
+    console.log(`[TTI Bare] → ${method} | URL: ${fullUrl}`);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const res = await fetch(fullUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const responseText = await res.text();
+      console.log(`[TTI Bare] ← ${method} | Status: ${res.status} | Length: ${responseText.length}`);
+      if (!res.ok) { lastError = new Error(`TTI ${method} Bare failed (${res.status}): ${responseText.slice(0, 500)}`); continue; }
+      try {
+        const json = JSON.parse(responseText);
+        return json;
+      } catch (e) { lastError = new Error(`TTI ${method} Bare: invalid JSON`); continue; }
+    } catch (fetchErr) { lastError = fetchErr; continue; }
+  }
+  throw lastError || new Error(`TTI ${method} Bare: all URL attempts failed`);
+}
+
+/**
  * Search flights via TTI SearchFlights endpoint
  */
 async function searchFlights({ origin, destination, departDate, returnDate, adults = 1, children = 0, infants = 0, cabinClass }) {
@@ -856,75 +895,121 @@ async function issueTicket({ pnr, bookingId }) {
 
   console.log('[TTI TICKET] Issuing ticket for PNR:', pnr, '| BookingId:', bookingId);
 
-  try {
-    // Attempt 1: Use "Cancel" method with a "Confirm/Ticket" action
-    // Some PSS APIs use the Cancel endpoint with action type to confirm/ticket
-    const request = {
-      RequestInfo: { AuthenticationKey: config.key },
-      BookingReference: pnr,
-      BookingId: bookingId || undefined,
-      AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
-      CancelTicketSettings: {
-        Action: 'Ticket',
-        Type: 'Confirm',
+  const requestVariants = [
+    {
+      label: 'Bare + BookingRef inside CancelTicketSettings',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Ticket',
+          BookingReference: pnr,
+          BookingId: bookingId || undefined,
+        },
       },
-    };
+    },
+    {
+      label: 'Bare + BookingRef top-level',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        BookingId: bookingId || undefined,
+        CancelTicketSettings: { Action: 'Ticket', Type: 'Confirm' },
+      },
+    },
+    {
+      label: 'Wrapped + BookingRef inside CancelTicketSettings',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Ticket',
+          BookingReference: pnr,
+          BookingId: bookingId || undefined,
+        },
+      },
+    },
+    {
+      label: 'Wrapped + BookingRef top-level',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        BookingId: bookingId || undefined,
+        AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
+        CancelTicketSettings: { Action: 'Ticket', Type: 'Confirm' },
+      },
+    },
+  ];
 
-    console.log('[TTI TICKET] Attempting via Cancel method with Ticket action:', JSON.stringify(request));
+  for (const variant of requestVariants) {
+    try {
+      console.log(`[TTI TICKET] Trying: ${variant.label}`);
+      const response = variant.bare
+        ? await ttiRequestBare('Cancel', variant.body)
+        : await ttiRequest('Cancel', variant.body);
 
-    const response = await ttiRequest('Cancel', request);
+      console.log('[TTI TICKET] Response keys:', Object.keys(response));
+      console.log('[TTI TICKET] Response:', JSON.stringify(response).substring(0, 3000));
 
-    console.log('[TTI TICKET] Full response keys:', Object.keys(response));
-    console.log('[TTI TICKET] Full response:', JSON.stringify(response).substring(0, 3000));
-
-    if (response.ResponseInfo?.Error) {
-      const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
-      console.error('[TTI TICKET] ❌ API Error:', errMsg);
-      
-      // If the Cancel method doesn't support ticketing, return helpful message
-      if (errMsg.includes('CancelTicketSettings') || errMsg.includes('not supported') || errMsg.includes('invalid')) {
-        return {
-          success: false,
-          error: `TTI API does not support remote ticketing via this endpoint. Ticketing may need to be done via Air Astra's back-office or GDS terminal. Error: ${errMsg}`,
-          ticketNumbers: [],
-          hint: 'Contact TTI/Air Astra for ticketing API access or use their admin portal.',
-        };
+      if (response.ResponseInfo?.Error) {
+        const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
+        console.error(`[TTI TICKET] ❌ Variant "${variant.label}" error: ${errMsg}`);
+        if (errMsg.includes('Missing field') || errMsg.includes('not found') || errMsg.includes('NullReference')) {
+          continue;
+        }
+        // If ticketing isn't supported at all
+        if (errMsg.includes('not supported') || errMsg.includes('invalid')) {
+          return {
+            success: false,
+            error: `TTI API does not support remote ticketing. Use Air Astra back-office. Error: ${errMsg}`,
+            ticketNumbers: [],
+            hint: 'Contact TTI/Air Astra for ticketing API access or use their admin portal.',
+          };
+        }
+        throw new Error(`TTI ticketing error: ${errMsg}`);
       }
-      throw new Error(`TTI ticketing error: ${errMsg}`);
-    }
 
-    // Extract ticket numbers from response
-    const ticketNumbers = [];
-    const tickets = response.Tickets || response.ETickets || response.TicketDetails || 
-                    response.Booking?.Tickets || response.Booking?.ETickets ||
-                    response.TicketInfo || [];
-    if (Array.isArray(tickets)) {
-      tickets.forEach(t => {
-        const num = t.TicketNumber || t.ETicketNumber || t.Number || t.DocumentNumber;
-        if (num) ticketNumbers.push(num);
-      });
-    }
-    if (ticketNumbers.length === 0) {
-      if (response.TicketNumber) ticketNumbers.push(response.TicketNumber);
-      if (response.ETicketNumber) ticketNumbers.push(response.ETicketNumber);
-    }
+      // Extract ticket numbers from response
+      const ticketNumbers = [];
+      const tickets = response.Tickets || response.ETickets || response.TicketDetails || 
+                      response.Booking?.Tickets || response.Booking?.ETickets ||
+                      response.TicketInfo || [];
+      if (Array.isArray(tickets)) {
+        tickets.forEach(t => {
+          const num = t.TicketNumber || t.ETicketNumber || t.Number || t.DocumentNumber;
+          if (num) ticketNumbers.push(num);
+        });
+      }
+      if (ticketNumbers.length === 0) {
+        if (response.TicketNumber) ticketNumbers.push(response.TicketNumber);
+        if (response.ETicketNumber) ticketNumbers.push(response.ETicketNumber);
+      }
+      if (ticketNumbers.length === 0 && response.Booking?.ETTicketFare) {
+        const etf = Array.isArray(response.Booking.ETTicketFare) ? response.Booking.ETTicketFare : [response.Booking.ETTicketFare];
+        etf.forEach(t => {
+          if (t.TicketNumber) ticketNumbers.push(t.TicketNumber);
+          if (t.ETicketNumber) ticketNumbers.push(t.ETicketNumber);
+        });
+      }
 
-    // Also check inside Booking.ETTicketFare
-    if (ticketNumbers.length === 0 && response.Booking?.ETTicketFare) {
-      const etf = Array.isArray(response.Booking.ETTicketFare) ? response.Booking.ETTicketFare : [response.Booking.ETTicketFare];
-      etf.forEach(t => {
-        if (t.TicketNumber) ticketNumbers.push(t.TicketNumber);
-        if (t.ETicketNumber) ticketNumbers.push(t.ETicketNumber);
-      });
+      console.log(`[TTI TICKET] ✅ Result via "${variant.label}":`, ticketNumbers.length > 0 ? `Tickets: ${ticketNumbers.join(', ')}` : 'No ticket numbers found');
+      return { success: true, ticketNumbers, rawResponse: response, methodUsed: `Cancel (${variant.label})` };
+    } catch (err) {
+      if (err.message.startsWith('TTI ticketing error:')) throw err;
+      console.error(`[TTI TICKET] Variant "${variant.label}" failed:`, err.message);
+      continue;
     }
-
-    console.log('[TTI TICKET] ✅ Result:', ticketNumbers.length > 0 ? `Tickets: ${ticketNumbers.join(', ')}` : 'No ticket numbers found in response');
-    
-    return { success: true, ticketNumbers, rawResponse: response, methodUsed: 'Cancel (Ticket action)' };
-  } catch (err) {
-    console.error('[TTI TICKET] ❌ Failed:', err.message);
-    return { success: false, error: err.message, ticketNumbers: [] };
   }
+
+  // All variants failed — TTI likely doesn't support ticketing via API
+  return {
+    success: false,
+    error: 'TTI Cancel API: all ticketing request formats failed. Ticket must be issued via Air Astra back-office.',
+    ticketNumbers: [],
+    hint: 'Use Air Astra admin portal for ticketing.',
+  };
 }
 
 /**
@@ -937,38 +1022,101 @@ async function cancelBooking({ pnr, bookingId }) {
 
   console.log('[TTI CANCEL] Cancelling booking PNR:', pnr, '| BookingId:', bookingId);
 
-  try {
-    const request = {
-      RequestInfo: { AuthenticationKey: config.key },
-      BookingReference: pnr,
-      BookingId: bookingId || undefined,
-      AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
-      CancelTicketSettings: {
-        Action: 'Cancel',
-        Type: 'Cancel',
-        CancelAll: true,
+  // TTI Cancel method requires CancelTicketSettings with booking ref inside it
+  // We try multiple request structures since TTI's WCF contract is strict
+  const requestVariants = [
+    // Variant 1: Bare mode with CancelTicketSettings containing BookingReference
+    {
+      label: 'Bare + BookingRef inside CancelTicketSettings',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Cancel',
+          BookingReference: pnr,
+          BookingId: bookingId || undefined,
+        },
       },
-    };
+    },
+    // Variant 2: Bare mode with BookingReference at top level
+    {
+      label: 'Bare + BookingRef top-level',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        BookingId: bookingId || undefined,
+        CancelTicketSettings: {
+          Action: 'Cancel',
+          Type: 'Cancel',
+          CancelAll: true,
+        },
+      },
+    },
+    // Variant 3: Wrapped (default) mode with BookingRef inside CancelTicketSettings  
+    {
+      label: 'Wrapped + BookingRef inside CancelTicketSettings',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Cancel',
+          BookingReference: pnr,
+          BookingId: bookingId || undefined,
+        },
+      },
+    },
+    // Variant 4: Wrapped mode, original structure
+    {
+      label: 'Wrapped + top-level BookingRef',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        BookingId: bookingId || undefined,
+        AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
+        CancelTicketSettings: {
+          Action: 'Cancel',
+          Type: 'Cancel',
+          CancelAll: true,
+        },
+      },
+    },
+  ];
 
-    console.log('[TTI CANCEL] Request:', JSON.stringify(request));
+  for (const variant of requestVariants) {
+    try {
+      console.log(`[TTI CANCEL] Trying: ${variant.label}`);
+      const response = variant.bare
+        ? await ttiRequestBare('Cancel', variant.body)
+        : await ttiRequest('Cancel', variant.body);
 
-    const response = await ttiRequest('Cancel', request);
+      console.log('[TTI CANCEL] Response keys:', Object.keys(response));
+      console.log('[TTI CANCEL] Response:', JSON.stringify(response).substring(0, 3000));
 
-    console.log('[TTI CANCEL] Full response keys:', Object.keys(response));
-    console.log('[TTI CANCEL] Full response:', JSON.stringify(response).substring(0, 3000));
+      if (response.ResponseInfo?.Error) {
+        const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
+        console.error(`[TTI CANCEL] ❌ Variant "${variant.label}" error: ${errMsg}`);
+        // If it's a "missing field" error, try next variant
+        if (errMsg.includes('Missing field') || errMsg.includes('not found') || errMsg.includes('NullReference')) {
+          continue;
+        }
+        // For other errors (e.g., "booking already cancelled"), throw
+        throw new Error(`TTI cancel error: ${errMsg}`);
+      }
 
-    if (response.ResponseInfo?.Error) {
-      const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
-      console.error('[TTI CANCEL] ❌ API Error:', errMsg);
-      throw new Error(`TTI cancel error: ${errMsg}`);
+      console.log(`[TTI CANCEL] ✅ Booking cancelled via "${variant.label}" — PNR: ${pnr}`);
+      return { success: true, rawResponse: response, methodUsed: `Cancel (${variant.label})` };
+    } catch (err) {
+      if (err.message.startsWith('TTI cancel error:')) throw err; // Re-throw non-structural errors
+      console.error(`[TTI CANCEL] Variant "${variant.label}" failed:`, err.message);
+      continue;
     }
-
-    console.log('[TTI CANCEL] ✅ Booking cancelled — PNR:', pnr);
-    return { success: true, rawResponse: response, methodUsed: 'Cancel' };
-  } catch (err) {
-    console.error('[TTI CANCEL] ❌ Failed:', err.message);
-    return { success: false, error: err.message };
   }
+
+  // All variants failed
+  console.error('[TTI CANCEL] ❌ All request variants failed for PNR:', pnr);
+  return { success: false, error: `TTI Cancel API: all request formats failed for PNR ${pnr}. The booking may need to be cancelled manually via Air Astra back-office.` };
 }
 
 /**
@@ -981,35 +1129,80 @@ async function voidTicket({ pnr, ticketNumber }) {
 
   console.log('[TTI VOID] Voiding ticket:', ticketNumber, 'PNR:', pnr);
 
-  try {
-    const request = {
-      RequestInfo: { AuthenticationKey: config.key },
-      BookingReference: pnr,
-      AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
-      CancelTicketSettings: {
-        Action: 'Void',
-        Type: 'Void',
-        TicketNumber: ticketNumber,
+  const requestVariants = [
+    {
+      label: 'Bare + BookingRef inside CancelTicketSettings',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Void',
+          BookingReference: pnr,
+          TicketNumber: ticketNumber,
+        },
       },
-    };
+    },
+    {
+      label: 'Bare + BookingRef top-level',
+      bare: true,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        CancelTicketSettings: { Action: 'Void', Type: 'Void', TicketNumber: ticketNumber },
+      },
+    },
+    {
+      label: 'Wrapped + BookingRef inside CancelTicketSettings',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        CancelTicketSettings: {
+          Action: 'Void',
+          BookingReference: pnr,
+          TicketNumber: ticketNumber,
+        },
+      },
+    },
+    {
+      label: 'Wrapped + BookingRef top-level',
+      bare: false,
+      body: {
+        RequestInfo: { AuthenticationKey: config.key },
+        BookingReference: pnr,
+        AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
+        CancelTicketSettings: { Action: 'Void', Type: 'Void', TicketNumber: ticketNumber },
+      },
+    },
+  ];
 
-    console.log('[TTI VOID] Request:', JSON.stringify(request));
+  for (const variant of requestVariants) {
+    try {
+      console.log(`[TTI VOID] Trying: ${variant.label}`);
+      const response = variant.bare
+        ? await ttiRequestBare('Cancel', variant.body)
+        : await ttiRequest('Cancel', variant.body);
 
-    const response = await ttiRequest('Cancel', request);
+      console.log('[TTI VOID] Response:', JSON.stringify(response).substring(0, 3000));
 
-    console.log('[TTI VOID] Full response keys:', Object.keys(response));
-    console.log('[TTI VOID] Full response:', JSON.stringify(response).substring(0, 3000));
+      if (response.ResponseInfo?.Error) {
+        const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
+        console.error(`[TTI VOID] ❌ Variant "${variant.label}" error: ${errMsg}`);
+        if (errMsg.includes('Missing field') || errMsg.includes('not found') || errMsg.includes('NullReference')) {
+          continue;
+        }
+        throw new Error(`TTI void error: ${errMsg}`);
+      }
 
-    if (response.ResponseInfo?.Error) {
-      throw new Error(`TTI void error: ${response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code}`);
+      console.log(`[TTI VOID] ✅ Ticket voided via "${variant.label}":`, ticketNumber);
+      return { success: true, rawResponse: response, methodUsed: `Cancel (${variant.label})` };
+    } catch (err) {
+      if (err.message.startsWith('TTI void error:')) throw err;
+      console.error(`[TTI VOID] Variant "${variant.label}" failed:`, err.message);
+      continue;
     }
-
-    console.log('[TTI VOID] ✅ Ticket voided:', ticketNumber);
-    return { success: true, rawResponse: response, methodUsed: 'Cancel (Void action)' };
-  } catch (err) {
-    console.error('[TTI VOID] ❌ Failed:', err.message);
-    return { success: false, error: err.message };
   }
+
+  return { success: false, error: `TTI Void API: all request formats failed for PNR ${pnr}.` };
 }
 
-module.exports = { searchFlights, createBooking, issueTicket, cancelBooking, voidTicket, ttiRequest, getTTIConfig, getAirlineName, clearTTIConfigCache };
+module.exports = { searchFlights, createBooking, issueTicket, cancelBooking, voidTicket, ttiRequest, ttiRequestBare, getTTIConfig, getAirlineName, clearTTIConfigCache };
