@@ -426,6 +426,44 @@ const FlightCard = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Cancellation Tab */}
+                  {activeDetailTab === "cancellation" && (
+                    <div className="max-w-md space-y-3">
+                      <div className={`flex items-center gap-3 p-3 rounded-xl border ${refundable ? "bg-accent/5 border-accent/20" : "bg-warning/5 border-warning/20"}`}>
+                        <Shield className={`w-5 h-5 ${refundable ? "text-accent" : "text-warning"}`} />
+                        <div>
+                          <p className="text-sm font-semibold">{refundable ? "Refundable Fare" : "Partially Refundable"}</p>
+                          <p className="text-xs text-muted-foreground">{refundable ? "Full refund available (cancellation fees may apply)" : "Cancellation charges apply as per airline policy"}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Before Departure</span><span className="font-semibold">{refundable ? "Refundable (fees apply)" : "Partially refundable"}</span></div>
+                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">After Departure</span><span className="font-semibold text-destructive">Non-refundable</span></div>
+                        <div className="flex justify-between py-1.5"><span className="text-muted-foreground">No Show</span><span className="font-semibold text-destructive">Non-refundable</span></div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground"><Info className="w-3 h-3 inline mr-1" />Cancellation charges are determined by the airline and may vary. Contact support for exact amounts.</p>
+                    </div>
+                  )}
+
+                  {/* Date Change Tab */}
+                  {activeDetailTab === "datechange" && (
+                    <div className="max-w-md space-y-3">
+                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                        <Clock className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-semibold">Date Change Policy</p>
+                          <p className="text-xs text-muted-foreground">Subject to airline fare rules and availability</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Date Change</span><span className="font-semibold">Allowed (fees apply)</span></div>
+                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Route Change</span><span className="font-semibold text-destructive">Not allowed</span></div>
+                        <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Fare Difference</span><span className="font-semibold">Applicable</span></div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground"><Info className="w-3 h-3 inline mr-1" />Date changes are subject to seat availability and fare difference. Airline change fees apply.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
