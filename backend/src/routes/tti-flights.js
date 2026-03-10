@@ -449,7 +449,7 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
         stopCodes: stopCodes,
         cabinClass: cabinName,
         bookingClass: bookingClass,
-        availableSeats: availableSeats,
+        availableSeats: minAvailableSeats === Infinity ? null : minAvailableSeats,
         price: pricePerDirection,
         baseFare: odCount > 1 ? Math.round(baseFareTotal / odCount) : baseFareTotal,
         taxes: odCount > 1 ? Math.round(taxesTotal / odCount) : taxesTotal,
