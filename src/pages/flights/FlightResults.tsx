@@ -124,13 +124,18 @@ const FlightCard = ({
   const duration = flight.duration || "";
   const stops = flight.stops ?? 0;
   const price = flight.price ?? 0;
+  const baseFare = flight.baseFare ?? price;
+  const taxes = flight.taxes ?? 0;
   const refundable = flight.refundable ?? false;
   const nextDay = isNextDay(flight.departureTime, flight.arrivalTime);
   const legs = flight.legs || [];
   const stopCodes = flight.stopCodes || [];
   const aircraft = flight.aircraft || legs[0]?.aircraft || "";
   const source = flight.source || "db";
-  const baggage = flight.baggage || "20 kg";
+  const baggage = flight.baggage || null;
+  const handBaggage = flight.handBaggage || null;
+  const cancellationPolicy = flight.cancellationPolicy || null;
+  const dateChangePolicy = flight.dateChangePolicy || null;
   const [activeDetailTab, setActiveDetailTab] = useState("itinerary");
 
   const stopsLabel = stops === 0 ? "Non-Stop" : `${stops} Stop${stops > 1 ? "s" : ""}`;
