@@ -433,7 +433,7 @@ const FlightBooking = () => {
         </div>
 
         {/* Biman notice */}
-        {isBiman && step === 4 && (
+        {isBiman && step === reviewStep && (
           <div className="flex items-start gap-3 p-4 mb-6 bg-warning/10 border border-warning/20 rounded-xl">
             <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
             <div>
