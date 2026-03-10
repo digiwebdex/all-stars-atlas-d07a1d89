@@ -681,14 +681,14 @@ const SearchWidget = () => {
               <AirportInput label="To" value={toAirport} onChange={setToAirport} placeholder="Where to?" airports={scopedToAirports} />
             </div>
 
-            <div className={`${tripType === "roundtrip" ? "col-span-1 sm:col-span-1" : ""} md:col-span-2 search-field border-b md:border-b-0 flex-col items-start`}>
+            <div className={`${tripType === "roundtrip" ? "col-span-1 sm:col-span-1" : ""} md:col-span-2 search-field border-b md:border-b-0 flex-col items-start ${dateErrorClass("depart")}`}>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Departure</div>
               <Popover>
                 <PopoverTrigger className="w-full text-left">
                   <DateDisplay date={departDate} fallbackDay="—" fallbackMonth="Select" fallbackWeekday="Date" />
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={departDate} onSelect={setDepartDate} initialFocus disabled={(date) => date < new Date()} />
+                  <Calendar mode="single" selected={departDate} onSelect={(d) => { setDepartDate(d); clearDateError("depart"); }} initialFocus disabled={(date) => date < new Date()} />
                 </PopoverContent>
               </Popover>
             </div>
