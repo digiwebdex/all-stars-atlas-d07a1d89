@@ -323,13 +323,55 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
       const coupons = od.AirCoupons || od.SegmentReferences || od.Segments || [];
       const odSegments = [];
 
+      // ── Extract seats & baggage from AirCoupons (primary TTI location) ──
       for (const coupon of coupons) {
         const ref = coupon.RefSegment || coupon.Ref || coupon;
         const seg = segmentMap[ref];
         if (seg) odSegments.push(seg);
+
+        // Seat availability from AirCoupon level (most common TTI location)
+        const couponSeats = coupon.AvailableSeats ?? coupon.SeatsAvailable ?? coupon.NoOfSeatAvailable
+          ?? coupon.Availability ?? coupon.AvailableSeatCount ?? coupon.SeatCount ?? null;
+        if (couponSeats !== null && typeof couponSeats === 'number' && couponSeats < minAvailableSeats) {
+          minAvailableSeats = couponSeats;
+        }
+
+        // Baggage from AirCoupon level
+        if (!checkedBaggage) {
+          const cBag = coupon.FreeBaggageAllowance || coupon.BaggageAllowance || coupon.CheckedBaggage || coupon.Baggage;
+          if (cBag) {
+            if (typeof cBag === 'string') checkedBaggage = cBag;
+            else if (typeof cBag === 'number') checkedBaggage = `${cBag}kg`;
+            else if (cBag.Weight) checkedBaggage = `${cBag.Weight}${cBag.WeightUnit || cBag.Unit || 'kg'}`;
+            else if (cBag.Quantity || cBag.Pieces) checkedBaggage = `${cBag.Quantity || cBag.Pieces} piece${(cBag.Quantity || cBag.Pieces) > 1 ? 's' : ''}`;
+            else if (cBag.Allowance) checkedBaggage = `${cBag.Allowance}`;
+          }
+        }
+        if (!handBaggage) {
+          const hBag = coupon.HandBaggage || coupon.CabinBaggage || coupon.HandBaggageAllowance;
+          if (hBag) {
+            if (typeof hBag === 'string') handBaggage = hBag;
+            else if (typeof hBag === 'number') handBaggage = `${hBag}kg`;
+            else if (hBag.Weight) handBaggage = `${hBag.Weight}${hBag.WeightUnit || hBag.Unit || 'kg'}`;
+          }
+        }
       }
 
       if (odSegments.length === 0) continue;
+
+      // Also extract seats/baggage from segment-level data
+      for (const seg of odSegments) {
+        const segSeats = seg.AvailableSeats ?? seg.SeatsAvailable ?? seg.NoOfSeatAvailable ?? null;
+        if (segSeats !== null && typeof segSeats === 'number' && segSeats < minAvailableSeats) {
+          minAvailableSeats = segSeats;
+        }
+        if (!checkedBaggage && seg.BaggageAllowance) {
+          const bag = seg.BaggageAllowance;
+          if (typeof bag === 'string') checkedBaggage = bag;
+          else if (bag.Weight) checkedBaggage = `${bag.Weight}${bag.WeightUnit || 'kg'}`;
+          else if (bag.Pieces) checkedBaggage = `${bag.Pieces} piece${bag.Pieces > 1 ? 's' : ''}`;
+        }
+      }
 
       const legs = odSegments.map(seg => {
         const fi = seg.FlightInfo || {};
@@ -407,7 +449,7 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
         stopCodes: stopCodes,
         cabinClass: cabinName,
         bookingClass: bookingClass,
-        availableSeats: availableSeats,
+        availableSeats: minAvailableSeats === Infinity ? null : minAvailableSeats,
         price: pricePerDirection,
         baseFare: odCount > 1 ? Math.round(baseFareTotal / odCount) : baseFareTotal,
         taxes: odCount > 1 ? Math.round(taxesTotal / odCount) : taxesTotal,
@@ -426,6 +468,26 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
         dateChangePolicy: dateChangePolicy,
         _ttiItineraryRef: itin.Ref,
       });
+    }
+  }
+
+  // Diagnostic logging for seat/baggage extraction
+  if (flights.length > 0) {
+    const sample = flights[0];
+    console.log(`[TTI] Normalized ${flights.length} flights. Sample: ${sample.flightNumber} — seats: ${sample.availableSeats}, baggage: ${sample.baggage}, handBaggage: ${sample.handBaggage}, refundable: ${sample.refundable}`);
+  }
+
+  // If no seats/baggage found, log the raw structure for debugging
+  if (flights.length > 0 && flights[0].availableSeats === null && itineraries.length > 0) {
+    const sampleItin = itineraries[0];
+    const sampleOD = sampleItin.AirOriginDestinations?.[0];
+    const sampleCoupon = sampleOD?.AirCoupons?.[0];
+    const sampleFare = etTicketFares[0];
+    console.log('[TTI DEBUG] AirCoupon keys:', sampleCoupon ? Object.keys(sampleCoupon) : 'none');
+    console.log('[TTI DEBUG] AirCoupon sample:', JSON.stringify(sampleCoupon)?.slice(0, 500));
+    console.log('[TTI DEBUG] ETTicketFare keys:', sampleFare ? Object.keys(sampleFare) : 'none');
+    if (sampleFare?.OriginDestinationFares?.[0]?.ETCouponFares?.[0]) {
+      console.log('[TTI DEBUG] ETCouponFare keys:', Object.keys(sampleFare.OriginDestinationFares[0].ETCouponFares[0]));
     }
   }
 

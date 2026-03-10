@@ -148,7 +148,7 @@ const FlightSegmentCard = ({ flight, label }: { flight: any; label: string }) =>
         <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 text-[10px] sm:text-[11px] text-muted-foreground">
           <span>{flight.airline} · {flight.flightNumber}</span>
           <span>· {flight.cabinClass || "Economy"}</span>
-          <span className="flex items-center gap-1"><Luggage className="w-3 h-3" /> {flight.baggage || "20kg"}</span>
+          <span className="flex items-center gap-1"><Luggage className="w-3 h-3" /> {flight.baggage || "As per airline policy"}</span>
           {flight.aircraft && <span className="hidden sm:inline">· Aircraft: {flight.aircraft}</span>}
         </div>
       </CardContent>
@@ -210,6 +210,8 @@ const FlightBooking = () => {
         };
         if (outboundFlight._ttiItineraryRef) params.itineraryRef = outboundFlight._ttiItineraryRef;
         if (outboundFlight.cabinClass) params.cabinClass = outboundFlight.cabinClass;
+        if (outboundFlight.baggage) params.checkedBaggage = outboundFlight.baggage;
+        if (outboundFlight.handBaggage) params.handBaggage = outboundFlight.handBaggage;
 
         const data = await api.get<any>("/flights/ancillaries", params);
         if (data?.source && data.source !== "standard") {
