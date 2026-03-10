@@ -56,9 +56,9 @@ const BookingConfirmation = () => {
             aircraft: leg.aircraft || ob.aircraft || "",
             terminal: leg.originTerminal || "",
             arrivalTerminal: leg.destinationTerminal || "",
-            baggage: ob.baggage || "20kg",
+            baggage: ob.baggage || "As per airline policy",
             status: "Confirmed",
-            meal: booking.meal || "Meals",
+            meal: booking.meal || "",
           });
         });
       } else {
@@ -73,9 +73,9 @@ const BookingConfirmation = () => {
           duration: ob.duration || "",
           cabinClass: ob.cabinClass || cabin,
           aircraft: ob.aircraft || "",
-          baggage: ob.baggage || "20kg",
+          baggage: ob.baggage || "As per airline policy",
           status: "Confirmed",
-          meal: booking.meal || "Meals",
+          meal: booking.meal || "",
         });
       }
     } else {
@@ -90,9 +90,9 @@ const BookingConfirmation = () => {
         arrivalTime: "",
         duration: "",
         cabinClass: cabin,
-        baggage: "20kg",
+        baggage: "As per airline policy",
         status: "Confirmed",
-        meal: booking.meal || "Meals",
+        meal: booking.meal || "",
       });
     }
 
@@ -114,9 +114,9 @@ const BookingConfirmation = () => {
             aircraft: leg.aircraft || ret.aircraft || "",
             terminal: leg.originTerminal || "",
             arrivalTerminal: leg.destinationTerminal || "",
-            baggage: ret.baggage || "20kg",
+            baggage: ret.baggage || "As per airline policy",
             status: "Confirmed",
-            meal: booking.meal || "Meals",
+            meal: booking.meal || "",
           });
         });
       } else {
@@ -130,9 +130,9 @@ const BookingConfirmation = () => {
           arrivalTime: ret.arrivalTime || "",
           duration: ret.duration || "",
           cabinClass: ret.cabinClass || cabin,
-          baggage: ret.baggage || "20kg",
+          baggage: ret.baggage || "As per airline policy",
           status: "Confirmed",
-          meal: booking.meal || "Meals",
+          meal: booking.meal || "",
         });
       }
     }

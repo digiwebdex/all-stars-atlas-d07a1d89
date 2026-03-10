@@ -112,7 +112,7 @@
 
 ---
 
-## 🎯 Features (100% Complete — Audited 2026-03-09)
+## 🎯 Features (100% Complete — Audited 2026-03-10)
 
 ### Public Site (10 Services)
 - **Homepage** — 11 CMS-driven sections with parallax hero video, animated counters, and section reordering
@@ -162,7 +162,7 @@
 | Module | Features |
 |--------|----------|
 | Dashboard | Revenue charts (Recharts), booking stats, recent activity |
-| Bookings | All bookings, status management, notes |
+| Bookings | All bookings, status management, notes, **real-time GDS operations** (Ticket/Cancel/Void via TTI, BDFare, FlyHub, Sabre) |
 | Users | User list, role assignment, ID verification status |
 | Payments | Payment tracking & history |
 | Payment Approvals | Receipt image viewer, approve/reject workflow |
@@ -176,7 +176,7 @@
 | CMS: Popups & Banners | Exit-intent popups, announcement banners, push templates |
 | CMS: Blog | Visual WYSIWYG + HTML editor, 16 default posts |
 | CMS: SEO, Footer, Media, Destinations, Email Templates | Full CMS suite |
-| Settings | General, payments, bank accounts, **19 API Integrations** (TTI GDS, BDFare, FlyHub, HotelBeds, Airalo, SSL Wireless, SSLCommerz, bKash, Nagad, BulkSMSBD, Resend, Stripe, WhatsApp, Google Maps), **Social Login OAuth** (Google + Facebook), Google Drive |
+| Settings | General, payments, bank accounts, **19 API Integrations** (TTI GDS, BDFare, FlyHub, Sabre, HotelBeds, Airalo, SSL Wireless, SSLCommerz, bKash, Nagad, BulkSMSBD, Resend, Stripe, WhatsApp, Google Maps), **Social Login OAuth** (Google + Facebook), Google Drive |
 
 ### GDS & API Integrations (All Admin-Panel Configurable)
 | Integration | File | Description |
