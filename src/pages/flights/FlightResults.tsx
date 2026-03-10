@@ -375,48 +375,52 @@ const FlightCard = ({
                     </div>
                   )}
 
-                  {/* Fare Summary Tab */}
+                  {/* Fare Summary Tab — real API data */}
                   {activeDetailTab === "fare" && (
                     <div className="max-w-md space-y-2 text-sm">
-                      <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Base Fare</span><span className="font-semibold">৳{price.toLocaleString()}</span></div>
-                      <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Taxes & Fees</span><span className="font-semibold">Included</span></div>
+                      <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Base Fare</span><span className="font-semibold">৳{baseFare.toLocaleString()}</span></div>
+                      <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Taxes & Fees</span><span className="font-semibold">{taxes > 0 ? `৳${taxes.toLocaleString()}` : "Included"}</span></div>
                       <Separator />
                       <div className="flex justify-between py-1.5 text-base"><span className="font-bold">Total Fare</span><span className="font-black text-accent">৳{price.toLocaleString()}</span></div>
                       <p className="text-[11px] text-muted-foreground mt-2"><Info className="w-3 h-3 inline mr-1" />{refundable ? "This fare is refundable. Cancellation charges may apply." : "This fare is partially refundable. Change and cancellation fees apply."}</p>
                     </div>
                   )}
 
-                  {/* Baggage Tab */}
+                  {/* Baggage Tab — real API data */}
                   {activeDetailTab === "baggage" && (
                     <div className="max-w-md space-y-3">
-                      <div className="flex items-center gap-3 p-3 bg-accent/5 rounded-xl border border-accent/10"><Luggage className="w-5 h-5 text-accent" /><div><p className="text-sm font-semibold">Checked Baggage</p><p className="text-xs text-muted-foreground">{baggage} per passenger</p></div></div>
-                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><Luggage className="w-4 h-4 text-muted-foreground" /><div><p className="text-sm font-semibold">Hand Baggage</p><p className="text-xs text-muted-foreground">7 kg · 1 piece</p></div></div>
-                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><span className="text-sm font-medium">Cabin Class</span><span className="text-sm text-muted-foreground ml-auto">{cabin}</span></div>
+                      <div className="flex items-center gap-3 p-3 bg-accent/5 rounded-xl border border-accent/10"><Luggage className="w-5 h-5 text-accent" /><div><p className="text-sm font-semibold">Checked Baggage</p><p className="text-xs text-muted-foreground">{baggage ? `${baggage} per passenger` : "As per airline policy"}</p></div></div>
+                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><Luggage className="w-4 h-4 text-muted-foreground" /><div><p className="text-sm font-semibold">Hand Baggage</p><p className="text-xs text-muted-foreground">{handBaggage ? `${handBaggage} per passenger` : "As per airline policy"}</p></div></div>
+                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><span className="text-sm font-medium">Cabin Class</span><span className="text-sm text-muted-foreground ml-auto">{cabinDisplay}</span></div>
                     </div>
                   )}
 
-                  {/* Cancellation Tab */}
+                  {/* Cancellation Tab — real API data */}
                   {activeDetailTab === "cancellation" && (
                     <div className="max-w-md space-y-3">
                       <div className={`flex items-center gap-3 p-3 rounded-xl border ${refundable ? "bg-accent/5 border-accent/20" : "bg-warning/5 border-warning/20"}`}>
                         <Shield className={`w-5 h-5 ${refundable ? "text-accent" : "text-warning"}`} />
-                        <div><p className="text-sm font-semibold">{refundable ? "Refundable Fare" : "Partially Refundable"}</p><p className="text-xs text-muted-foreground">{refundable ? "Full refund available (cancellation fees may apply)" : "Cancellation charges apply as per airline policy"}</p></div>
+                        <div><p className="text-sm font-semibold">{refundable ? "Refundable Fare" : "Non-Refundable Fare"}</p><p className="text-xs text-muted-foreground">{refundable ? "Full refund available (cancellation fees may apply)" : "Cancellation charges apply as per airline policy"}</p></div>
                       </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Before Departure</span><span className="font-semibold">{refundable ? "Refundable (fees apply)" : "Partially refundable"}</span></div>
-                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">After Departure</span><span className="font-semibold text-destructive">Non-refundable</span></div>
-                        <div className="flex justify-between py-1.5"><span className="text-muted-foreground">No Show</span><span className="font-semibold text-destructive">Non-refundable</span></div>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground"><Info className="w-3 h-3 inline mr-1" />Cancellation charges are determined by the airline and may vary.</p>
+                      {cancellationPolicy?.ruleText ? (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{cancellationPolicy.ruleText}</p>
+                      ) : (
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Before Departure</span><span className="font-semibold">{cancellationPolicy?.beforeDeparture != null ? `৳${Number(cancellationPolicy.beforeDeparture).toLocaleString()} fee` : refundable ? "Refundable (fees apply)" : "As per airline policy"}</span></div>
+                          <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">After Departure</span><span className="font-semibold text-destructive">{cancellationPolicy?.afterDeparture || "Non-refundable"}</span></div>
+                          <div className="flex justify-between py-1.5"><span className="text-muted-foreground">No Show</span><span className="font-semibold text-destructive">{cancellationPolicy?.noShow || "Non-refundable"}</span></div>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground"><Info className="w-3 h-3 inline mr-1" />Cancellation charges are determined by the airline and may vary. Contact support for exact amounts.</p>
                     </div>
                   )}
 
-                  {/* Date Change Tab */}
+                  {/* Date Change Tab — real API data */}
                   {activeDetailTab === "datechange" && (
                     <div className="max-w-md space-y-3">
-                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border"><Clock className="w-5 h-5 text-muted-foreground" /><div><p className="text-sm font-semibold">Date Change Policy</p><p className="text-xs text-muted-foreground">Subject to airline fare rules and availability</p></div></div>
+                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border"><Clock className="w-5 h-5 text-muted-foreground" /><div><p className="text-sm font-semibold">Date Change Policy</p><p className="text-xs text-muted-foreground">{dateChangePolicy?.ruleText || "Subject to airline fare rules and availability"}</p></div></div>
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Date Change</span><span className="font-semibold">Allowed (fees apply)</span></div>
+                        <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Date Change</span><span className="font-semibold">{dateChangePolicy?.changeAllowed !== false ? (dateChangePolicy?.changeFee != null ? `৳${Number(dateChangePolicy.changeFee).toLocaleString()} fee` : "Allowed (fees apply)") : "Not allowed"}</span></div>
                         <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-muted-foreground">Route Change</span><span className="font-semibold text-destructive">Not allowed</span></div>
                         <div className="flex justify-between py-1.5"><span className="text-muted-foreground">Fare Difference</span><span className="font-semibold">Applicable</span></div>
                       </div>
