@@ -650,33 +650,56 @@ async function issueTicket({ pnr, bookingId }) {
   const config = await getTTIConfig();
   if (!config) throw new Error('TTI API not configured');
 
-  console.log('[TTI] Issuing ticket for PNR:', pnr);
+  console.log('[TTI TICKET] Issuing ticket for PNR:', pnr, '| BookingId:', bookingId);
 
   try {
-    const response = await ttiRequest('TicketBooking', {
+    const request = {
       RequestInfo: { AuthenticationKey: config.key },
       BookingReference: pnr,
       BookingId: bookingId || undefined,
       AgencyInfo: { AgencyId: config.agencyId, AgencyName: config.agencyName },
-    });
+    };
+
+    console.log('[TTI TICKET] Request:', JSON.stringify(request));
+
+    const response = await ttiRequest('TicketBooking', request);
+
+    // ── COMPREHENSIVE DEBUG LOGGING ──
+    console.log('[TTI TICKET] Full response keys:', Object.keys(response));
+    console.log('[TTI TICKET] Full response:', JSON.stringify(response).substring(0, 3000));
 
     if (response.ResponseInfo?.Error) {
-      throw new Error(`TTI ticketing error: ${response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code}`);
+      const errMsg = response.ResponseInfo.Error.Message || response.ResponseInfo.Error.Code || 'Unknown';
+      console.error('[TTI TICKET] ❌ API Error:', errMsg);
+      throw new Error(`TTI ticketing error: ${errMsg}`);
     }
 
     const ticketNumbers = [];
-    const tickets = response.Tickets || response.ETickets || response.TicketDetails || [];
+    // Try multiple possible response structures
+    const tickets = response.Tickets || response.ETickets || response.TicketDetails || 
+                    response.Booking?.Tickets || response.Booking?.ETickets ||
+                    response.TicketInfo || [];
     if (Array.isArray(tickets)) {
       tickets.forEach(t => {
-        const num = t.TicketNumber || t.ETicketNumber || t.Number;
+        const num = t.TicketNumber || t.ETicketNumber || t.Number || t.DocumentNumber;
         if (num) ticketNumbers.push(num);
       });
     }
 
-    console.log('[TTI] Ticket issued — tickets:', ticketNumbers);
+    // Also check if ticket number is at top level
+    if (ticketNumbers.length === 0) {
+      if (response.TicketNumber) ticketNumbers.push(response.TicketNumber);
+      if (response.ETicketNumber) ticketNumbers.push(response.ETicketNumber);
+    }
+
+    console.log('[TTI TICKET] ✅ Tickets issued:', ticketNumbers.length > 0 ? ticketNumbers.join(', ') : 'NONE FOUND');
+    if (ticketNumbers.length === 0) {
+      console.warn('[TTI TICKET] ⚠️ No ticket numbers extracted! Full response:', JSON.stringify(response).substring(0, 5000));
+    }
+
     return { success: true, ticketNumbers, rawResponse: response };
   } catch (err) {
-    console.error('[TTI] IssueTicket failed:', err.message);
+    console.error('[TTI TICKET] ❌ IssueTicket failed:', err.message);
     return { success: false, error: err.message, ticketNumbers: [] };
   }
 }
