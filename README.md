@@ -176,7 +176,7 @@
 | CMS: Popups & Banners | Exit-intent popups, announcement banners, push templates |
 | CMS: Blog | Visual WYSIWYG + HTML editor, 16 default posts |
 | CMS: SEO, Footer, Media, Destinations, Email Templates | Full CMS suite |
-| Settings | General, payments, bank accounts, **19 API Integrations** (TTI GDS, BDFare, FlyHub, HotelBeds, Airalo, SSL Wireless, SSLCommerz, bKash, Nagad, BulkSMSBD, Resend, Stripe, WhatsApp, Google Maps), **Social Login OAuth** (Google + Facebook), Google Drive |
+| Settings | General, payments, bank accounts, **19 API Integrations** (TTI GDS, BDFare, FlyHub, Sabre, HotelBeds, Airalo, SSL Wireless, SSLCommerz, bKash, Nagad, BulkSMSBD, Resend, Stripe, WhatsApp, Google Maps), **Social Login OAuth** (Google + Facebook), Google Drive |
 
 ### GDS & API Integrations (All Admin-Panel Configurable)
 | Integration | File | Description |
