@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Ticket, CreditCard, FileText, Settings,
   BarChart3, Image, Globe, LogOut, Megaphone, Menu, X,
   PenLine, Mail, MapPin, Home, Search as SearchIcon, PanelBottom,
-  Shield, ChevronRight, Zap
+  Shield, ChevronRight, Zap, DollarSign, Coins
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
