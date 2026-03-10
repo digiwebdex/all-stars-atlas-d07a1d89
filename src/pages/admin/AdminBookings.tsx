@@ -134,7 +134,7 @@ const AdminBookings = () => {
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      return b.id?.toLowerCase().includes(q) || b.customer?.toLowerCase().includes(q) || b.email?.toLowerCase().includes(q) || b.route?.toLowerCase().includes(q);
+      return b.id?.toLowerCase().includes(q) || b.customer?.toLowerCase().includes(q) || b.email?.toLowerCase().includes(q) || b.route?.toLowerCase().includes(q) || b.pnr?.toLowerCase().includes(q);
     }
     return true;
   });
