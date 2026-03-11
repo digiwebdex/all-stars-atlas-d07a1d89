@@ -707,7 +707,8 @@ const FlightBooking = () => {
                         </>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
