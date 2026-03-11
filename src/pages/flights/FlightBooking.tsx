@@ -354,6 +354,18 @@ const FlightBooking = () => {
           }
         }
       }
+      // ─── Travel document uploads validation (international only) ───
+      if (!domestic) {
+        for (let pi = 0; pi < passengers.length; pi++) {
+          const paxLabel = paxTypes[pi]?.label || `Passenger ${pi + 1}`;
+          if (!travelDocsUploaded[`passport_${pi}`]) {
+            errors[`passportDoc_${pi}`] = `${paxLabel}: Passport copy is required for international flights`;
+          }
+          if (!travelDocsUploaded[`visa_${pi}`]) {
+            errors[`visaDoc_${pi}`] = `${paxLabel}: Visa copy is required for international flights`;
+          }
+        }
+      }
       if (Object.keys(errors).length > 0) { setFieldErrors(errors); toast({ title: "Missing Passenger Info", description: Object.values(errors)[0], variant: "destructive" }); return false; }
     }
     setFieldErrors({}); return true;
