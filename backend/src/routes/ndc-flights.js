@@ -60,7 +60,7 @@ async function searchFlights(params) {
 
   try {
     const { origin, destination, departDate, returnDate, adults = 1, children = 0, infants = 0, cabinClass } = params;
-    const cabinMap = { Economy: 'M', 'Premium Economy': 'W', Business: 'C', First: 'F' };
+    const cabinMap = { Economy: 'M', 'Premium Economy': 'W', Business: 'C', First: 'F', economy: 'M', premiumeconomy: 'W', business: 'C', first: 'F' };
 
     // Build NDC AirShopping request
     const request = {

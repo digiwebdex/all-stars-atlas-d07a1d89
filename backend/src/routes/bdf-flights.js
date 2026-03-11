@@ -68,7 +68,7 @@ async function searchFlights({ origin, destination, departDate, returnDate, adul
       adults: parseInt(adults),
       children: parseInt(children),
       infants: parseInt(infants),
-      cabinClass: cabinClass || 'Economy',
+      cabinClass: (cabinClass || 'Economy').charAt(0).toUpperCase() + (cabinClass || 'Economy').slice(1),
       currency: 'BDT',
     };
 
