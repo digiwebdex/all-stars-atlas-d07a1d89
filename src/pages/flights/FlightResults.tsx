@@ -486,6 +486,20 @@ const FlightResults = () => {
   const [selectedOutbound, setSelectedOutbound] = useState<any>(null);
   const [selectedReturn, setSelectedReturn] = useState<any>(null);
 
+  // Multi-city state
+  const tripType = searchParams.get("tripType") || "";
+  const isMultiCity = tripType === "multicity";
+  const segmentsParam = searchParams.get("segments") || "";
+  const multiCitySegments: { from: string; to: string; date: string }[] = useMemo(() => {
+    if (!isMultiCity || !segmentsParam) return [];
+    try { return JSON.parse(segmentsParam); } catch { return []; }
+  }, [isMultiCity, segmentsParam]);
+
+  const [multiCityResults, setMultiCityResults] = useState<Record<number, any[]>>({});
+  const [multiCityLoading, setMultiCityLoading] = useState(false);
+  const [multiCityError, setMultiCityError] = useState<string | null>(null);
+  const [selectedMultiCityFlights, setSelectedMultiCityFlights] = useState<Record<number, any>>({});
+
   const fromCode = searchParams.get("from") || "";
   const toCode = searchParams.get("to") || "";
   const departDate = searchParams.get("depart") || "";
@@ -495,10 +509,11 @@ const FlightResults = () => {
   const infants = searchParams.get("infants") || "0";
   const cabinClass = searchParams.get("cabin") || searchParams.get("class") || "";
   const totalPax = parseInt(adults) + parseInt(children) + parseInt(infants);
-  const hasRequiredParams = !!fromCode && !!toCode && !!departDate;
-  const isRoundTrip = !!returnDate;
+  const hasRequiredParams = isMultiCity ? multiCitySegments.length >= 2 : (!!fromCode && !!toCode && !!departDate);
+  const isRoundTrip = !!returnDate && !isMultiCity;
 
-  const params = hasRequiredParams ? {
+  // Standard search params (one-way / round-trip)
+  const params = (!isMultiCity && hasRequiredParams) ? {
     from: fromCode, to: toCode, date: departDate,
     return: returnDate || undefined, adults,
     children: children !== "0" ? children : undefined,
@@ -506,10 +521,43 @@ const FlightResults = () => {
     cabinClass: cabinClass || undefined,
   } : undefined;
 
-  const { data: rawData, isLoading, error, refetch } = useFlightSearch(params);
+  const { data: rawData, isLoading: standardLoading, error, refetch } = useFlightSearch(params);
   const apiData = (rawData as any) || {};
-  const flights = apiData.data || apiData.flights || [];
+  const flights = isMultiCity ? [] : (apiData.data || apiData.flights || []);
   const hasDirections = flights.some((f: any) => f.direction === "return");
+  const isLoading = isMultiCity ? multiCityLoading : standardLoading;
+
+  // Multi-city: search each segment in parallel via API
+  useEffect(() => {
+    if (!isMultiCity || multiCitySegments.length < 2) return;
+    setMultiCityLoading(true);
+    setMultiCityError(null);
+    setMultiCityResults({});
+    setSelectedMultiCityFlights({});
+
+    const searchAll = async () => {
+      try {
+        const results: Record<number, any[]> = {};
+        const promises = multiCitySegments.map(async (seg, i) => {
+          const searchParams: Record<string, string> = {
+            from: seg.from, to: seg.to, date: seg.date,
+            adults, cabinClass: cabinClass || "",
+          };
+          if (children !== "0") searchParams.children = children;
+          if (infants !== "0") searchParams.infants = infants;
+          const data = await api.get<any>(API_ENDPOINTS.FLIGHTS_SEARCH, searchParams);
+          results[i] = data?.data || data?.flights || [];
+        });
+        await Promise.all(promises);
+        setMultiCityResults(results);
+      } catch (err: any) {
+        setMultiCityError(err.message || "Failed to search flights");
+      } finally {
+        setMultiCityLoading(false);
+      }
+    };
+    searchAll();
+  }, [isMultiCity, segmentsParam, adults, children, infants, cabinClass]);
 
   const outboundFlights = useMemo(() => flights.filter((f: any) => f.direction !== "return"), [flights]);
   const returnFlights = useMemo(() => flights.filter((f: any) => f.direction === "return"), [flights]);
