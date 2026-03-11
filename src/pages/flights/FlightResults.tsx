@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plane, Clock, ArrowRight, Filter, X, Luggage,
   SlidersHorizontal, ChevronDown, ChevronUp, Shield, Timer,
@@ -16,6 +17,8 @@ import { useFlightSearch } from "@/hooks/useApiData";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
 import DataLoader from "@/components/DataLoader";
 import { AIRPORTS } from "@/lib/airports";
+import { api } from "@/lib/api";
+import { API_ENDPOINTS } from "@/lib/constants";
 
 /* ─── Airline logo — dynamic CDN, no hardcoded map ─── */
 function getAirlineLogo(code?: string): string | null {
@@ -483,6 +486,20 @@ const FlightResults = () => {
   const [selectedOutbound, setSelectedOutbound] = useState<any>(null);
   const [selectedReturn, setSelectedReturn] = useState<any>(null);
 
+  // Multi-city state
+  const tripType = searchParams.get("tripType") || "";
+  const isMultiCity = tripType === "multicity";
+  const segmentsParam = searchParams.get("segments") || "";
+  const multiCitySegments: { from: string; to: string; date: string }[] = useMemo(() => {
+    if (!isMultiCity || !segmentsParam) return [];
+    try { return JSON.parse(segmentsParam); } catch { return []; }
+  }, [isMultiCity, segmentsParam]);
+
+  const [multiCityResults, setMultiCityResults] = useState<Record<number, any[]>>({});
+  const [multiCityLoading, setMultiCityLoading] = useState(false);
+  const [multiCityError, setMultiCityError] = useState<string | null>(null);
+  const [selectedMultiCityFlights, setSelectedMultiCityFlights] = useState<Record<number, any>>({});
+
   const fromCode = searchParams.get("from") || "";
   const toCode = searchParams.get("to") || "";
   const departDate = searchParams.get("depart") || "";
@@ -492,10 +509,11 @@ const FlightResults = () => {
   const infants = searchParams.get("infants") || "0";
   const cabinClass = searchParams.get("cabin") || searchParams.get("class") || "";
   const totalPax = parseInt(adults) + parseInt(children) + parseInt(infants);
-  const hasRequiredParams = !!fromCode && !!toCode && !!departDate;
-  const isRoundTrip = !!returnDate;
+  const hasRequiredParams = isMultiCity ? multiCitySegments.length >= 2 : (!!fromCode && !!toCode && !!departDate);
+  const isRoundTrip = !!returnDate && !isMultiCity;
 
-  const params = hasRequiredParams ? {
+  // Standard search params (one-way / round-trip)
+  const params = (!isMultiCity && hasRequiredParams) ? {
     from: fromCode, to: toCode, date: departDate,
     return: returnDate || undefined, adults,
     children: children !== "0" ? children : undefined,
@@ -503,20 +521,61 @@ const FlightResults = () => {
     cabinClass: cabinClass || undefined,
   } : undefined;
 
-  const { data: rawData, isLoading, error, refetch } = useFlightSearch(params);
+  const { data: rawData, isLoading: standardLoading, error, refetch } = useFlightSearch(params);
   const apiData = (rawData as any) || {};
-  const flights = apiData.data || apiData.flights || [];
+  const flights = isMultiCity ? [] : (apiData.data || apiData.flights || []);
   const hasDirections = flights.some((f: any) => f.direction === "return");
+  const isLoading = isMultiCity ? multiCityLoading : standardLoading;
+
+  // Multi-city: search each segment in parallel via API
+  useEffect(() => {
+    if (!isMultiCity || multiCitySegments.length < 2) return;
+    setMultiCityLoading(true);
+    setMultiCityError(null);
+    setMultiCityResults({});
+    setSelectedMultiCityFlights({});
+
+    const searchAll = async () => {
+      try {
+        const results: Record<number, any[]> = {};
+        const promises = multiCitySegments.map(async (seg, i) => {
+          const searchParams: Record<string, string> = {
+            from: seg.from, to: seg.to, date: seg.date,
+            adults, cabinClass: cabinClass || "",
+          };
+          if (children !== "0") searchParams.children = children;
+          if (infants !== "0") searchParams.infants = infants;
+          const data = await api.get<any>(API_ENDPOINTS.FLIGHTS_SEARCH, searchParams);
+          results[i] = data?.data || data?.flights || [];
+        });
+        await Promise.all(promises);
+        setMultiCityResults(results);
+      } catch (err: any) {
+        setMultiCityError(err.message || "Failed to search flights");
+      } finally {
+        setMultiCityLoading(false);
+      }
+    };
+    searchAll();
+  }, [isMultiCity, segmentsParam, adults, children, infants, cabinClass]);
 
   const outboundFlights = useMemo(() => flights.filter((f: any) => f.direction !== "return"), [flights]);
   const returnFlights = useMemo(() => flights.filter((f: any) => f.direction === "return"), [flights]);
 
-  const airlines = useMemo(() => apiData.airlines || [...new Set(flights.map((f: any) => f.airline).filter(Boolean))], [apiData.airlines, flights]);
-  const cheapest = useMemo(() => apiData.cheapest || (flights.length > 0 ? Math.min(...flights.map((f: any) => f.price || Infinity)) : 0), [apiData.cheapest, flights]);
-  const maxPrice = useMemo(() => flights.length > 0 ? Math.max(...flights.map((f: any) => f.price || 0)) : 200000, [flights]);
-  const minPrice = useMemo(() => flights.length > 0 ? Math.min(...flights.map((f: any) => f.price || 0)) : 0, [flights]);
+  // Combine all multi-city flights for filter computation
+  const allMultiCityFlights = useMemo(() => {
+    if (!isMultiCity) return [];
+    return Object.values(multiCityResults).flat();
+  }, [isMultiCity, multiCityResults]);
 
-  useEffect(() => { if (flights.length > 0) setPriceRange([Math.max(0, minPrice - 100), maxPrice]); }, [minPrice, maxPrice, flights.length]);
+  const allFlightsForFilters = isMultiCity ? allMultiCityFlights : flights;
+
+  const airlines = useMemo(() => apiData.airlines || [...new Set(allFlightsForFilters.map((f: any) => f.airline).filter(Boolean))], [apiData.airlines, allFlightsForFilters]);
+  const cheapest = useMemo(() => apiData.cheapest || (allFlightsForFilters.length > 0 ? Math.min(...allFlightsForFilters.map((f: any) => f.price || Infinity)) : 0), [apiData.cheapest, allFlightsForFilters]);
+  const maxPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.max(...allFlightsForFilters.map((f: any) => f.price || 0)) : 200000, [allFlightsForFilters]);
+  const minPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.min(...allFlightsForFilters.map((f: any) => f.price || 0)) : 0, [allFlightsForFilters]);
+
+  useEffect(() => { if (allFlightsForFilters.length > 0) setPriceRange([Math.max(0, minPrice - 100), maxPrice]); }, [minPrice, maxPrice, allFlightsForFilters.length]);
 
   const toggleAirline = useCallback((a: string) => setSelectedAirlines(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
 
@@ -553,6 +612,24 @@ const FlightResults = () => {
 
   const roundTripTotal = (selectedOutbound?.price || 0) + (selectedReturn?.price || 0);
 
+  // Multi-city booking handler
+  const handleBookMultiCity = () => {
+    const selectedFlights = Object.values(selectedMultiCityFlights);
+    if (selectedFlights.length !== multiCitySegments.length) return;
+    // Pass first segment as outbound, rest via state
+    navigate(`/flights/book?adults=${adults}&children=${children}&infants=${infants}&cabin=${cabinClass || "economy"}`, {
+      state: { outboundFlight: selectedFlights[0], multiCityFlights: selectedFlights },
+    });
+  };
+
+  const multiCityTotal = useMemo(() => {
+    return Object.values(selectedMultiCityFlights).reduce((sum, f) => sum + (f?.price || 0), 0);
+  }, [selectedMultiCityFlights]);
+
+  const totalMultiCityFlights = useMemo(() => {
+    return Object.values(multiCityResults).reduce((sum, arr) => sum + arr.length, 0);
+  }, [multiCityResults]);
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
@@ -561,14 +638,39 @@ const FlightResults = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-                <Plane className="w-5 h-5 text-accent" /> {fromCode || "—"} <ArrowRight className="w-5 h-5" /> {toCode || "—"}
-                {isRoundTrip && <Badge className="bg-accent/10 text-accent border-0 text-[10px] ml-2">Round Trip</Badge>}
+                <Plane className="w-5 h-5 text-accent" />
+                {isMultiCity ? (
+                  <>
+                    {multiCitySegments.map((s, i) => (
+                      <span key={i} className="flex items-center gap-1">
+                        {i > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
+                        <span>{s.from}</span>
+                      </span>
+                    ))}
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    <span>{multiCitySegments[multiCitySegments.length - 1]?.to || "—"}</span>
+                    <Badge className="bg-blue-500/10 text-blue-600 border-0 text-[10px] ml-2">Multi-City</Badge>
+                  </>
+                ) : (
+                  <>
+                    {fromCode || "—"} <ArrowRight className="w-5 h-5" /> {toCode || "—"}
+                    {isRoundTrip && <Badge className="bg-accent/10 text-accent border-0 text-[10px] ml-2">Round Trip</Badge>}
+                  </>
+                )}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {departDate}{returnDate ? ` – ${returnDate}` : ""} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-foreground">{flights.length} flights found</strong>
-                {sources.tti > 0 && <span className="text-muted-foreground ml-1">({sources.tti} Air Astra)</span>}
-                {sources.sabre > 0 && <span className="text-muted-foreground ml-1">({sources.sabre} Sabre)</span>}
-                {sources.flyhub > 0 && <span className="text-muted-foreground ml-1">({sources.flyhub} FlyHub)</span>}
+                {isMultiCity ? (
+                  <>
+                    {multiCitySegments.map((s, i) => s.date).join(", ")} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-foreground">{totalMultiCityFlights} flights found</strong>
+                  </>
+                ) : (
+                  <>
+                    {departDate}{returnDate ? ` – ${returnDate}` : ""} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-foreground">{flights.length} flights found</strong>
+                    {sources.tti > 0 && <span className="text-muted-foreground ml-1">({sources.tti} Air Astra)</span>}
+                    {sources.sabre > 0 && <span className="text-muted-foreground ml-1">({sources.sabre} Sabre)</span>}
+                    {sources.flyhub > 0 && <span className="text-muted-foreground ml-1">({sources.flyhub} FlyHub)</span>}
+                  </>
+                )}
               </p>
             </div>
             <div className="flex gap-2 items-center">
@@ -638,6 +740,99 @@ const FlightResults = () => {
               </div>
 
               {/* Results */}
+              {isMultiCity ? (
+                /* ── MULTI-CITY RESULTS ── */
+                multiCityLoading ? (
+                  <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
+                ) : multiCityError ? (
+                  <Card><CardContent className="py-12 text-center text-destructive"><p className="font-semibold">{multiCityError}</p><Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>Retry</Button></CardContent></Card>
+                ) : (
+                  <div className="space-y-6">
+                    {multiCitySegments.map((seg, segIdx) => {
+                      const segFlights = sortFlights(applyFilters(multiCityResults[segIdx] || []), sortBy);
+                      const segColors = ["bg-accent/10 text-accent", "bg-blue-500/10 text-blue-600", "bg-purple-500/10 text-purple-600", "bg-amber-500/10 text-amber-600", "bg-rose-500/10 text-rose-600"];
+                      const selectedFlight = selectedMultiCityFlights[segIdx];
+
+                      return (
+                        <div key={segIdx}>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${segColors[segIdx % segColors.length]}`}>
+                              <Plane className="w-4 h-4" /><span className="text-sm font-bold">Flight {segIdx + 1}</span>
+                            </div>
+                            <span className="text-sm font-medium">{seg.from} → {seg.to}</span>
+                            <span className="text-xs text-muted-foreground">{seg.date} · {segFlights.length} flights</span>
+                            {selectedFlight && (
+                              <Badge className="bg-accent/10 text-accent border-0 text-xs ml-auto">
+                                <Check className="w-3 h-3 mr-1" /> {formatTime(selectedFlight.departureTime)} – {formatTime(selectedFlight.arrivalTime)} · ৳{selectedFlight.price?.toLocaleString()}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            {segFlights.length === 0 ? (
+                              <Card><CardContent className="py-8 text-center text-muted-foreground"><p>No flights found for {seg.from} → {seg.to} on {seg.date}</p></CardContent></Card>
+                            ) : segFlights.map((flight: any) => (
+                              <FlightCard key={flight.id} flight={flight} cheapest={cheapest}
+                                isExpanded={expandedFlight === flight.id} onToggleExpand={() => setExpandedFlight(expandedFlight === flight.id ? null : flight.id)}
+                                selectionMode isSelected={selectedFlight?.id === flight.id}
+                                onSelect={() => setSelectedMultiCityFlights(prev => ({
+                                  ...prev,
+                                  [segIdx]: prev[segIdx]?.id === flight.id ? undefined : flight,
+                                }))} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Sticky multi-city booking bar */}
+                    <AnimatePresence>
+                      {Object.keys(selectedMultiCityFlights).some(k => selectedMultiCityFlights[parseInt(k)]) && (
+                        <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+                          className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t-2 border-accent shadow-2xl">
+                          <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 overflow-x-auto">
+                              {multiCitySegments.map((seg, i) => {
+                                const sf = selectedMultiCityFlights[i];
+                                return sf ? (
+                                  <div key={i} className="flex items-center gap-2 shrink-0">
+                                    <Plane className="w-4 h-4 text-accent" />
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground">Flight {i + 1}</p>
+                                      <p className="text-xs font-bold">{seg.from} → {seg.to} · ৳{sf.price?.toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div key={i} className="flex items-center gap-2 shrink-0 opacity-40">
+                                    <Plane className="w-4 h-4" />
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground">Flight {i + 1}</p>
+                                      <p className="text-xs font-medium">{seg.from} → {seg.to}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="flex items-center gap-4 shrink-0">
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Total ({Object.values(selectedMultiCityFlights).filter(Boolean).length}/{multiCitySegments.length} selected)</p>
+                                <p className="text-xl font-black text-accent">৳{multiCityTotal.toLocaleString()}</p>
+                              </div>
+                              <Button size="lg" className="font-bold shadow-lg px-6 bg-accent text-accent-foreground hover:bg-accent/90"
+                                disabled={Object.values(selectedMultiCityFlights).filter(Boolean).length !== multiCitySegments.length}
+                                onClick={handleBookMultiCity}>
+                                {Object.values(selectedMultiCityFlights).filter(Boolean).length !== multiCitySegments.length
+                                  ? `Select All ${multiCitySegments.length} Flights`
+                                  : "Book Multi-City"}
+                                <ArrowRight className="w-4 h-4 ml-2" />
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              ) : (
               <DataLoader isLoading={isLoading} error={error} skeleton="cards" retry={refetch}>
                 {isRoundTrip && hasDirections ? (
                   <div className="space-y-6">
@@ -751,6 +946,7 @@ const FlightResults = () => {
                   </>
                 )}
               </DataLoader>
+              )}
             </div>
           </div>
         )}
