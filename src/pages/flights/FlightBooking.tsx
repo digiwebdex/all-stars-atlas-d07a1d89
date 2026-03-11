@@ -306,17 +306,34 @@ const FlightBooking = () => {
         const paxLabel = paxTypes[pi]?.label || `Passenger ${pi + 1}`;
         if (!p.title) { errors[`title_${pi}`] = `${paxLabel}: Title is required`; }
         if (!p.firstName?.trim()) { errors[`firstName_${pi}`] = `${paxLabel}: First name is required`; }
+        else if (p.firstName.trim().length < 2) { errors[`firstName_${pi}`] = `${paxLabel}: First name too short`; }
         if (!p.lastName?.trim()) { errors[`lastName_${pi}`] = `${paxLabel}: Last name is required`; }
+        else if (p.lastName.trim().length < 2) { errors[`lastName_${pi}`] = `${paxLabel}: Last name too short`; }
         if (!p.dob) { errors[`dob_${pi}`] = `${paxLabel}: Date of birth is required`; }
+        else { const dobDate = new Date(p.dob); if (dobDate >= new Date()) errors[`dob_${pi}`] = `${paxLabel}: Date of birth must be in the past`; }
         if (!p.nationality?.trim()) { errors[`nationality_${pi}`] = `${paxLabel}: Nationality is required`; }
-        if (pi === 0 && !p.email?.trim()) { errors.email = "Email is required"; }
-        else if (pi === 0 && p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) { errors.email = "Invalid email format"; }
-        if (pi === 0 && !p.phone?.trim()) { errors.phone = "Phone number is required"; }
-        if (p.firstName && p.firstName.trim().length < 2) { errors[`firstName_${pi}`] = `${paxLabel}: First name too short`; }
-        if (p.lastName && p.lastName.trim().length < 2) { errors[`lastName_${pi}`] = `${paxLabel}: Last name too short`; }
-        if (p.dob) { const dobDate = new Date(p.dob); if (dobDate >= new Date()) errors[`dob_${pi}`] = `${paxLabel}: Date of birth must be in the past`; }
-        if (!domestic && !p.passport?.trim()) { errors[`passport_${pi}`] = `${paxLabel}: Passport required for international flights`; }
-        if (p.passport && p.passport.trim().length > 0 && p.passport.trim().length < 5) { errors[`passport_${pi}`] = `${paxLabel}: Invalid passport number`; }
+        // Contact info — first passenger only
+        if (pi === 0) {
+          if (!p.email?.trim()) { errors[`email_${pi}`] = "Email is required"; }
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) { errors[`email_${pi}`] = "Invalid email format"; }
+          if (!p.phone?.trim()) { errors[`phone_${pi}`] = "Phone number is required"; }
+          else if (!/^01[3-9]\d{8}$/.test(p.phone.replace(/[\s\-+]/g, "").replace(/^880/, "").replace(/^\+880/, ""))) { errors[`phone_${pi}`] = "Invalid Bangladesh phone number (01X-XXXXXXXX)"; }
+        }
+        // Passport for international flights
+        if (!domestic) {
+          if (!p.passport?.trim()) { errors[`passport_${pi}`] = `${paxLabel}: Passport required for international flights`; }
+          else if (p.passport.trim().length < 5) { errors[`passport_${pi}`] = `${paxLabel}: Invalid passport number`; }
+          // Passport expiry: must be at least 6 months from departure
+          if (p.passportExpiry) {
+            const expiry = new Date(p.passportExpiry);
+            const departureDate = outboundFlight?.departureTime ? new Date(outboundFlight.departureTime) : new Date();
+            const sixMonths = new Date(departureDate);
+            sixMonths.setMonth(sixMonths.getMonth() + 6);
+            if (expiry < sixMonths) { errors[`passportExpiry_${pi}`] = `${paxLabel}: Passport must be valid for at least 6 months from departure`; }
+          } else {
+            errors[`passportExpiry_${pi}`] = `${paxLabel}: Passport expiry date required for international flights`;
+          }
+        }
       }
       if (Object.keys(errors).length > 0) { setFieldErrors(errors); toast({ title: "Missing Passenger Info", description: Object.values(errors)[0], variant: "destructive" }); return false; }
     }
