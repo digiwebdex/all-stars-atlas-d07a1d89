@@ -254,16 +254,26 @@ const FlightBooking = () => {
   const mealCost = mealOptions.find(m => m.id === selectedMeal)?.price || 0;
   const baggageCost = selectedBaggage.reduce((sum, id) => sum + (baggageOptions.find(b => b.id === id)?.price || 0), 0);
   const addOnTotal = (mealCost + baggageCost) * totalPaxCount;
+  // Multi-city flights support
+  const multiCityFlights: any[] = locationState?.multiCityFlights || [];
+  const isMultiCity = multiCityFlights.length >= 2;
+
   const outboundPrice = outboundFlight?.price || 0;
   const returnPrice = returnFlight?.price || 0;
+
+  // Multi-city: sum all segment prices
+  const multiCityTotalPrice = isMultiCity ? multiCityFlights.reduce((sum: number, f: any) => sum + (f?.price || 0), 0) : 0;
+  const multiCityTotalBaseFare = isMultiCity ? multiCityFlights.reduce((sum: number, f: any) => sum + (f?.baseFare ?? f?.price ?? 0), 0) : 0;
+  const multiCityTotalTaxes = isMultiCity ? multiCityFlights.reduce((sum: number, f: any) => sum + (f?.taxes ?? 0), 0) : 0;
+
   const outboundBaseFare = outboundFlight?.baseFare ?? outboundPrice;
   const returnBaseFare = returnFlight?.baseFare ?? returnPrice;
-  const perPaxBaseFare = outboundBaseFare + returnBaseFare;
+  const perPaxBaseFare = isMultiCity ? multiCityTotalBaseFare : (outboundBaseFare + returnBaseFare);
   const baseFare = perPaxBaseFare * totalPaxCount;
-  // Use real tax data from GDS response; only fall back to calculation if unavailable
+  // Zero-mock: use ONLY real tax data from GDS. If unavailable, show 0 (included in fare)
   const outboundTaxes = outboundFlight?.taxes ?? 0;
   const returnTaxes = returnFlight?.taxes ?? 0;
-  const perPaxTaxes = (outboundTaxes + returnTaxes) > 0 ? (outboundTaxes + returnTaxes) : Math.round(perPaxBaseFare * 0.12);
+  const perPaxTaxes = isMultiCity ? multiCityTotalTaxes : (outboundTaxes + returnTaxes);
   const taxes = perPaxTaxes * totalPaxCount;
   const serviceCharge = outboundFlight?.serviceCharge ?? 0;
   const grandTotal = baseFare + taxes + serviceCharge + addOnTotal;
