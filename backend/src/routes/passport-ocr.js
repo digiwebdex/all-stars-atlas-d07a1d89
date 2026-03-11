@@ -1,5 +1,5 @@
 /**
- * Enterprise Document OCR Engine v6 — Cross-Validated Intelligence
+ * Enterprise Document OCR Engine v7 — QR/Barcode Cross-Validated Intelligence
  * Extracts structured data from ANY passport, National ID, or Driving License worldwide.
  * 
  * Architecture:
