@@ -110,7 +110,7 @@ const SessionTimer = ({ minutes = 20 }: { minutes?: number }) => {
 };
 
 /* ─── Compact flight segment card ─── */
-const FlightSegmentCard = ({ flight, label }: { flight: any; label: string }) => {
+const FlightSegmentCard = ({ flight, label, searchedCabinClass }: { flight: any; label: string; searchedCabinClass?: string }) => {
   const logo = getAirlineLogo(flight?.airlineCode);
   if (!flight) return (
     <Card className="border-dashed"><CardContent className="py-8 text-center">
