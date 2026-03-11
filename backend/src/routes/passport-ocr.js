@@ -1226,7 +1226,7 @@ function findBirthPlace(lines, upper, fullText) {
 
 function emptyResult() {
   return {
-    title: '', firstName: '', lastName: '', country: '',
+    title: '', firstName: '', lastName: '', country: '', countryCode: '',
     passportNumber: '', birthDate: '', birthPlace: '',
     gender: '', issuanceDate: '', expiryDate: '',
   };
