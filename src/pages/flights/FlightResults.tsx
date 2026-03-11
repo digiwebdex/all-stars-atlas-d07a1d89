@@ -946,6 +946,7 @@ const FlightResults = () => {
                   </>
                 )}
               </DataLoader>
+              )}
             </div>
           </div>
         )}
