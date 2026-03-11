@@ -189,8 +189,115 @@ function translateBanglaPlace(text) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// INTELLIGENT GENDER INFERENCE FROM NAME
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Infer gender from name using extensive name databases.
+ * Covers South Asian (Bangladesh, India, Pakistan), Arabic, and international names.
+ * Returns 'Male', 'Female', or '' if uncertain.
+ */
+function inferGenderFromName(firstName, lastName) {
+  const full = ((firstName || '') + ' ' + (lastName || '')).toUpperCase().trim();
+  if (!full) return '';
+
+  const parts = full.split(/\s+/);
+
+  // ── FEMALE indicators (check first — more specific patterns) ──
+  const femaleNames = [
+    // Bangladeshi / Bengali female
+    'NAHAR', 'BEGUM', 'AKTER', 'AKTAR', 'AKHTER', 'KHATUN', 'KHATOON', 'SULTANA',
+    'FATEMA', 'FATIMA', 'MONI', 'MONIRA', 'MUNIRA', 'HASINA', 'HALIMA', 'NASRIN',
+    'NASREEN', 'NARGIS', 'REHANA', 'RUKSANA', 'RUMA', 'RINA', 'RITA', 'SHAPLA',
+    'SHAMIMA', 'SHIRIN', 'SALMA', 'SALEHA', 'SABINA', 'SABERA', 'RAHIMA',
+    'PARVIN', 'PARVEEN', 'PARUL', 'DILARA', 'DALIA', 'JASMIN', 'JASMEEN',
+    'TASLIMA', 'TANIA', 'TAMANNA', 'SHAHNAZ', 'SHANTA', 'SHATHI', 'SHIULI',
+    'AFROZA', 'AYESHA', 'AISHA', 'AMINA', 'ASMA', 'AFRIN', 'ARJU', 'ARIFA',
+    'BILKIS', 'BITHI', 'CHAMPA', 'CHANDNI', 'FARZANA', 'FARIDA', 'FIROZA',
+    'HENA', 'JHARNA', 'JOYTI', 'JYOTI', 'KAKOLI', 'KAMRUN', 'KOHINOOR',
+    'KULSUM', 'LABONI', 'LATA', 'LIPI', 'LUBNA', 'LUCKY', 'MALA', 'MALEKA',
+    'MARIUM', 'MARIAM', 'MARYAM', 'MASUDA', 'MAZEDA', 'MOUSHUMI', 'MUKTA',
+    'NAHIDA', 'NAIMA', 'NAJU', 'NAZIA', 'NIPA', 'NISHI', 'NUSRAT', 'POLY',
+    'RABEYA', 'RAZIA', 'RENU', 'ROJINA', 'ROKEYA', 'RUMANA', 'SABRINA',
+    'SADIA', 'SAFINA', 'SAIDA', 'SAJEDA', 'SAKINA', 'SAMIA', 'SANJIDA',
+    'SARIKA', 'SHEFA', 'SHELINA', 'SHILA', 'SHIMA', 'SHIREEN', 'SHOMPA',
+    'SONIA', 'SUFIA', 'SUMA', 'SWEETIE', 'THAMINA', 'ZAHIDA', 'ZAKIA',
+    'ZANNAT', 'ZARIN', 'ZENAT', 'ZOHRA', 'ZUBAIDA',
+    // Bangla name parts
+    'MOSSAMMAT', 'MOSAMMAT', 'MOSSAMMAD', 'MST', 'MOST',
+    // Indian female
+    'DEVI', 'KUMARI', 'BAI', 'PRIYA', 'LAKSHMI', 'LAXMI', 'SITA', 'GITA',
+    'ANITA', 'SUNITA', 'KAVITA', 'SAVITA', 'MAMTA', 'MEENA', 'NEHA',
+    'POOJA', 'PUJA', 'RANI', 'REKHA', 'SEEMA', 'SHOBHA', 'SWATI', 'USHA',
+    // Arabic female
+    'KHADIJA', 'MARYAM', 'ZAINAB', 'SARAH', 'SARA', 'HUDA', 'NOOR', 'LAYLA',
+    'LEILA', 'ZAHRA', 'SAMIRA', 'YASMIN', 'YASMEEN',
+    // International female
+    'MARIA', 'ANNA', 'EMMA', 'SOPHIA', 'OLIVIA', 'EMILY', 'ELIZABETH',
+    'JESSICA', 'JENNIFER', 'MICHELLE', 'NICOLE', 'AMANDA', 'STEPHANIE',
+    'CATHERINE', 'CHRISTINE', 'PATRICIA', 'MARGARET', 'SANDRA', 'HELEN',
+  ];
+
+  // ── MALE indicators ──
+  const maleNames = [
+    // Bangladeshi / Bengali male
+    'MOHAMMAD', 'MOHAMMED', 'MUHAMMED', 'MUHAMMAD', 'MOHAMMOD', 'MD', 'ULLAH',
+    'HOSSAIN', 'HOSSEN', 'HUSSAIN', 'HUSSEIN', 'HASAN', 'HASSAN', 'UDDIN',
+    'RAHMAN', 'RAHIM', 'AHMED', 'AHAMED', 'ALAM', 'ALI', 'ISLAM', 'KHAN',
+    'MIAH', 'MIA', 'MIAN', 'SHEIKH', 'SHAIKH', 'CHOWDHURY', 'CHOUDHURY',
+    'TALUKDER', 'SARKER', 'SARKAR', 'SIKDER', 'SIDDIQUE', 'SIDDIQUI',
+    'KARIM', 'KABIR', 'RAZZAK', 'RASHID', 'RASHED', 'SHAFIQ', 'SHAHID',
+    'SHARIF', 'SOHEL', 'SUMON', 'TAREK', 'TARIQ', 'ZAHIR', 'ZAHID',
+    'JAMAL', 'KAMRUL', 'MORSHED', 'MASUD', 'NASIR', 'OMAR', 'RAFIQ',
+    'RAJIB', 'RUBEL', 'SAJJAD', 'SAKIB', 'SHAKIL', 'SHAMIM', 'SHOAIB',
+    'TANVIR', 'TOUFIQ', 'YUSUF', 'ZAMAN', 'BILLAL', 'FAISAL', 'HABIB',
+    'IMRAN', 'IQBAL', 'JABBAR', 'JASHIM', 'JEWEL', 'JUNAID', 'LITON',
+    'MANIK', 'MILON', 'MONIR', 'MOSTOFA', 'MUSTAFA', 'NAEEM', 'PARVEZ',
+    'POLASH', 'RASEL', 'RIPON', 'ROBIN', 'SAIFUL', 'SELIM', 'SHOHAG',
+    'BABUL', 'DULAL', 'FARUK', 'GAZI', 'HELAL',
+    // Bangla male prefix
+    'GORBAN', 'GURBAN', 'QURBAN',
+    // Indian male
+    'KUMAR', 'SINGH', 'RAJ', 'RAVI', 'AMIT', 'ANIL', 'ASHOK', 'DEEPAK',
+    'GANESH', 'KRISHNA', 'MANOJ', 'MOHAN', 'PANKAJ', 'RAHUL', 'RAKESH',
+    'RAMESH', 'ROHIT', 'SANJAY', 'SUNIL', 'VIJAY', 'VIKRAM', 'VINOD',
+    // Arabic male
+    'ABDULLAH', 'ABDUL', 'IBRAHIM', 'ISMAIL', 'KHALID', 'NABIL', 'SAEED',
+    'WALEED', 'YASSER', 'ZAYED',
+    // International male
+    'JAMES', 'JOHN', 'ROBERT', 'MICHAEL', 'WILLIAM', 'DAVID', 'RICHARD',
+    'CHARLES', 'JOSEPH', 'THOMAS', 'DANIEL', 'MATTHEW', 'ANTHONY', 'MARK',
+    'STEVEN', 'PAUL', 'ANDREW', 'GEORGE', 'EDWARD', 'PETER',
+  ];
+
+  // Score-based: count matches across all name parts
+  let femaleScore = 0;
+  let maleScore = 0;
+
+  for (const part of parts) {
+    if (femaleNames.includes(part)) femaleScore += 2;
+    if (maleNames.includes(part)) maleScore += 2;
+  }
+
+  // Check prefix patterns (Mst./Most./Mosammat = female, Md./Mohammad = male)
+  if (/^(MST|MOST|MOSSAMMAT|MOSAMMAT|MOSSAMMAD)\b/.test(full)) femaleScore += 5;
+  if (/^(MD|MOHAMMAD|MOHAMMED|MUHAMMAD)\b/.test(full)) maleScore += 5;
+
+  // Suffix patterns
+  if (full.endsWith('NAHAR') || full.endsWith('BEGUM') || full.endsWith('AKTER') || full.endsWith('KHATUN') || full.endsWith('SULTANA')) femaleScore += 3;
+  if (full.endsWith('UDDIN') || full.endsWith('ULLAH') || full.endsWith('ALAM') || full.endsWith('ISLAM') || full.endsWith('HOSSAIN')) maleScore += 3;
+
+  console.log(`[OCR] Gender inference for "${full}": female=${femaleScore}, male=${maleScore}`);
+
+  if (femaleScore > maleScore && femaleScore >= 2) return 'Female';
+  if (maleScore > femaleScore && maleScore >= 2) return 'Male';
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════
 // MASTER PARSER
 // ═══════════════════════════════════════════════════════════
+
 
 function parseDocument(text) {
   const empty = () => ({
@@ -240,6 +347,11 @@ function parseDocument(text) {
   result.lastName = cleanName(result.lastName);
   result.birthPlace = cleanPlace(result.birthPlace);
   result.country = normalizeCountryCode(result.country);
+
+  // Infer gender from name if not detected (critical for NID cards without gender field)
+  if (!result.gender) {
+    result.gender = inferGenderFromName(result.firstName, result.lastName);
+  }
 
   // Title from gender
   if (!result.title && result.gender === 'Male') result.title = 'MR';
@@ -448,8 +560,9 @@ function parseNID(lines, fullText) {
     }
   }
 
-  // ── Gender ──
+  // ── Gender (from explicit labels OR inferred from father/mother context) ──
   for (const line of lines) {
+    // Explicit gender labels
     if (/(?:লিঙ্গ|SEX|GENDER)\s*[:：.]\s*(পুরুষ|মহিলা|MALE|FEMALE|M\b|F\b)/i.test(line)) {
       const m = line.match(/(?:লিঙ্গ|SEX|GENDER)\s*[:：.]\s*(পুরুষ|মহিলা|MALE|FEMALE|M\b|F\b)/i);
       if (m) {
@@ -457,6 +570,15 @@ function parseNID(lines, fullText) {
         if (/^(M|MALE|পুরুষ)$/i.test(val)) { r.gender = 'Male'; r.title = 'MR'; }
         else if (/^(F|FEMALE|মহিলা)$/i.test(val)) { r.gender = 'Female'; r.title = 'MS'; }
       }
+    }
+  }
+
+  // If no explicit gender found, infer from the extracted name
+  if (!r.gender && (r.firstName || r.lastName)) {
+    const inferred = inferGenderFromName(r.firstName, r.lastName);
+    if (inferred) {
+      r.gender = inferred;
+      r.title = inferred === 'Male' ? 'MR' : 'MS';
     }
   }
 
