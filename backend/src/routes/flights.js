@@ -542,6 +542,7 @@ router.post('/book', authenticate, async (req, res) => {
       isDomestic: domestic,
       addOns: addOns || {},
       baseFare, taxes, serviceCharge,
+      travelDocuments: travelDocuments || [],
     };
 
     // If this is a TTI/Air Astra flight, create booking in GDS first
