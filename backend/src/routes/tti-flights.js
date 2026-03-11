@@ -260,6 +260,13 @@ function normalizeTTIResponse(response, originCode, destinationCode, isRoundTrip
     }
   }
 
+  // Build fare rule map from FareInfo.FareRules (contains refundability/change info)
+  const fareRules = fareInfo.FareRules || [];
+  const fareRuleMap = {};
+  for (const rule of fareRules) {
+    if (rule.Ref) fareRuleMap[rule.Ref] = rule;
+  }
+
   const itinFareMap = {};
   for (const fare of etTicketFares) {
     if (fare.RefItinerary) {
