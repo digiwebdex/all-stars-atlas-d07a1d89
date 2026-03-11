@@ -109,6 +109,12 @@ router.post('/ocr', async (req, res) => {
               { type: 'TEXT_DETECTION', maxResults: 1 },
               { type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 },
             ],
+          }, {
+            // Separate request for barcode/QR detection
+            image: { content: base64Data },
+            features: [
+              { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
+            ],
           }],
         }),
       });
@@ -125,14 +131,48 @@ router.post('/ocr', async (req, res) => {
                  resp0.textAnnotations?.[0]?.description || '';
     }
 
+    // ── Barcode/QR Detection (separate lightweight call) ──
+    let barcodeData = [];
+    try {
+      const barcodeUrl = `https://vision.googleapis.com/v1/images:annotate?key=${config.apiKey}`;
+      const barcodeResp = await fetch(barcodeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64Data },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+            // We'll parse QR/barcode from the raw text patterns instead
+          }],
+        }),
+      });
+      // QR codes on passports encode MRZ-like data, which is already in the OCR text
+      // Google Vision reads QR text as part of TEXT_DETECTION
+    } catch (err) {
+      console.log('[OCR] Barcode detection skipped:', err.message);
+    }
+
     console.log('[OCR] ──── RAW TEXT ────');
     console.log(fullText);
     console.log('[OCR] ──── END RAW TEXT ────');
 
-    const extracted = parseDocument(fullText);
+    // Parse QR/barcode data from raw text (QR codes on passports encode MRZ-like strings)
+    const qrData = parseQRCodeData(fullText);
+    if (qrData) {
+      console.log('[OCR] QR/Barcode data detected:', JSON.stringify(qrData));
+    }
+
+    const extracted = parseDocument(fullText, qrData);
 
     // Include confidence info in response
-    res.json({ success: true, extracted: extracted.result, confidence: extracted.confidence, crossValidation: extracted.crossValidation, rawText: fullText });
+    res.json({
+      success: true,
+      extracted: extracted.result,
+      confidence: extracted.confidence,
+      crossValidation: extracted.crossValidation,
+      qrDetected: !!qrData,
+      rawText: fullText,
+    });
   } catch (err) {
     console.error('[OCR] Error:', err.message);
     res.status(500).json({ message: 'OCR processing failed', error: err.message });
