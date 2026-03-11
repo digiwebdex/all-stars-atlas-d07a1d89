@@ -197,7 +197,7 @@ const FlightBooking = () => {
   for (let i = 0; i < childCount; i++) paxTypes.push({ type: "child", label: `Child ${childCount > 1 ? i + 1 : ""}`.trim() });
   for (let i = 0; i < infantCount; i++) paxTypes.push({ type: "infant", label: `Infant ${infantCount > 1 ? i + 1 : ""}`.trim() });
 
-  const emptyPax = () => ({ title: "", firstName: "", lastName: "", dob: "", nationality: "", passport: "", passportExpiry: "", email: "", phone: "", gender: "", documentCountry: "BD" });
+  const emptyPax = () => ({ title: "", firstName: "", lastName: "", dob: "", nationality: "Bangladeshi", passport: "", passportExpiry: "", email: "", phone: "", gender: "", documentCountry: "BD" });
 
   const [passengers, setPassengers] = useState(() => paxTypes.map(() => emptyPax()));
   const [passportScanOpen, setPassportScanOpen] = useState(false);
@@ -377,9 +377,19 @@ const FlightBooking = () => {
         CAN:'CA',AUS:'AU',JPN:'JP',KOR:'KR',CHN:'CN',THA:'TH',IDN:'ID',PHL:'PH',
         TUR:'TR',EGY:'EG',DEU:'DE',FRA:'FR',ITA:'IT',ESP:'ES',NLD:'NL',CHE:'CH',
       };
+      const code3toNationality: Record<string, string> = {
+        BGD:'Bangladeshi',IND:'Indian',USA:'American',GBR:'British',PAK:'Pakistani',
+        NPL:'Nepalese',LKA:'Sri Lankan',MMR:'Myanmar',MYS:'Malaysian',SGP:'Singaporean',
+        ARE:'Emirati',SAU:'Saudi',KWT:'Kuwaiti',QAT:'Qatari',BHR:'Bahraini',OMN:'Omani',
+        CAN:'Canadian',AUS:'Australian',JPN:'Japanese',KOR:'Korean',CHN:'Chinese',
+        THA:'Thai',IDN:'Indonesian',PHL:'Filipino',TUR:'Turkish',EGY:'Egyptian',
+        DEU:'German',FRA:'French',ITA:'Italian',ESP:'Spanish',NLD:'Dutch',CHE:'Swiss',
+      };
       const iso2 = data.countryCode ? (code3to2[data.countryCode] || data.countryCode.substring(0, 2)) : "BD";
       updated[pi].documentCountry = iso2;
-      if (!updated[pi].nationality) updated[pi].nationality = iso2;
+      if (!updated[pi].nationality) {
+        updated[pi].nationality = data.countryCode ? (code3toNationality[data.countryCode] || data.country || "") : "Bangladeshi";
+      }
     }
     setPassengers(updated);
     setFieldErrors({});
@@ -682,10 +692,80 @@ const FlightBooking = () => {
                         </div>
                         <div className="space-y-1.5">
                           <Label className={`text-xs sm:text-sm ${fieldErrors[`nationality_${pi}`] ? "text-destructive" : ""}`}>Nationality *</Label>
-                          <Input value={pax.nationality} onChange={(e) => {
-                            const updated = [...passengers]; updated[pi].nationality = e.target.value; setPassengers(updated);
+                          <Select value={pax.nationality} onValueChange={(v) => {
+                            const updated = [...passengers]; updated[pi].nationality = v; setPassengers(updated);
                             setFieldErrors(prev => { const n = {...prev}; delete n[`nationality_${pi}`]; return n; });
-                          }} placeholder="e.g. Bangladeshi" className={`h-10 sm:h-11 ${fieldErrors[`nationality_${pi}`] ? "border-destructive ring-destructive/20 ring-2" : ""}`} />
+                          }}>
+                            <SelectTrigger className={`h-10 sm:h-11 ${fieldErrors[`nationality_${pi}`] ? "border-destructive ring-destructive/20 ring-2" : ""}`}>
+                              <SelectValue placeholder="Select Nationality" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                              {[
+                                { code: "Bangladeshi", label: "Bangladeshi" },
+                                { code: "Indian", label: "Indian" },
+                                { code: "Pakistani", label: "Pakistani" },
+                                { code: "Nepalese", label: "Nepalese" },
+                                { code: "Sri Lankan", label: "Sri Lankan" },
+                                { code: "Myanmar", label: "Myanmar" },
+                                { code: "Malaysian", label: "Malaysian" },
+                                { code: "Singaporean", label: "Singaporean" },
+                                { code: "Emirati", label: "Emirati (UAE)" },
+                                { code: "Saudi", label: "Saudi Arabian" },
+                                { code: "Kuwaiti", label: "Kuwaiti" },
+                                { code: "Qatari", label: "Qatari" },
+                                { code: "Bahraini", label: "Bahraini" },
+                                { code: "Omani", label: "Omani" },
+                                { code: "American", label: "American (US)" },
+                                { code: "British", label: "British (UK)" },
+                                { code: "Canadian", label: "Canadian" },
+                                { code: "Australian", label: "Australian" },
+                                { code: "German", label: "German" },
+                                { code: "French", label: "French" },
+                                { code: "Italian", label: "Italian" },
+                                { code: "Spanish", label: "Spanish" },
+                                { code: "Dutch", label: "Dutch" },
+                                { code: "Swiss", label: "Swiss" },
+                                { code: "Swedish", label: "Swedish" },
+                                { code: "Norwegian", label: "Norwegian" },
+                                { code: "Danish", label: "Danish" },
+                                { code: "Finnish", label: "Finnish" },
+                                { code: "Irish", label: "Irish" },
+                                { code: "Portuguese", label: "Portuguese" },
+                                { code: "Greek", label: "Greek" },
+                                { code: "Polish", label: "Polish" },
+                                { code: "Romanian", label: "Romanian" },
+                                { code: "Russian", label: "Russian" },
+                                { code: "Japanese", label: "Japanese" },
+                                { code: "Korean", label: "Korean" },
+                                { code: "Chinese", label: "Chinese" },
+                                { code: "Thai", label: "Thai" },
+                                { code: "Indonesian", label: "Indonesian" },
+                                { code: "Filipino", label: "Filipino" },
+                                { code: "Turkish", label: "Turkish" },
+                                { code: "Egyptian", label: "Egyptian" },
+                                { code: "Brazilian", label: "Brazilian" },
+                                { code: "Mexican", label: "Mexican" },
+                                { code: "Argentine", label: "Argentine" },
+                                { code: "Colombian", label: "Colombian" },
+                                { code: "South African", label: "South African" },
+                                { code: "Nigerian", label: "Nigerian" },
+                                { code: "Kenyan", label: "Kenyan" },
+                                { code: "Ethiopian", label: "Ethiopian" },
+                                { code: "Ghanaian", label: "Ghanaian" },
+                                { code: "Afghan", label: "Afghan" },
+                                { code: "Iraqi", label: "Iraqi" },
+                                { code: "Iranian", label: "Iranian" },
+                                { code: "Jordanian", label: "Jordanian" },
+                                { code: "Lebanese", label: "Lebanese" },
+                                { code: "Vietnamese", label: "Vietnamese" },
+                                { code: "Cambodian", label: "Cambodian" },
+                                { code: "Bhutanese", label: "Bhutanese" },
+                                { code: "Maldivian", label: "Maldivian" },
+                              ].map(c => (
+                                <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
