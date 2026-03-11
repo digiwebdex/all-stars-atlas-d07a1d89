@@ -57,27 +57,33 @@ async function getSabreConfig() {
 
 function clearSabreConfigCache() { _configCache = null; _configCacheTime = 0; }
 
-// ── OAuth2 Token Management ──
+// ── OAuth2 v3 Token Management (Password Grant — JV_BD OTA) ──
 let tokenCache = { token: null, expiresAt: 0 };
 
 async function getAccessToken(config) {
   if (tokenCache.token && Date.now() < tokenCache.expiresAt - 60000) return tokenCache.token;
 
   try {
+    // JV_BD OAuth v3: password grant with EPR-PCC as username
     const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-    const res = await fetch(`${config.baseUrl}/v2/auth/token`, {
+    const username = `${config.epr}-${config.pcc}`;
+    const body = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(config.agencyPassword)}`;
+
+    console.log(`[Sabre] Authenticating via OAuth v3 (EPR: ${config.epr}, PCC: ${config.pcc})...`);
+
+    const res = await fetch(`${config.baseUrl}/v3/auth/token`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: 'grant_type=client_credentials',
+      body,
       signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.error('[Sabre] Auth failed:', res.status, errText.slice(0, 300));
+      console.error('[Sabre] OAuth v3 auth failed:', res.status, errText.slice(0, 300));
       return null;
     }
 
@@ -87,11 +93,12 @@ async function getAccessToken(config) {
         token: data.access_token,
         expiresAt: Date.now() + (data.expires_in || 604800) * 1000,
       };
+      console.log('[Sabre] OAuth v3 token acquired, expires in', data.expires_in, 'seconds');
       return tokenCache.token;
     }
     return null;
   } catch (err) {
-    console.error('[Sabre] Auth error:', err.message);
+    console.error('[Sabre] OAuth v3 auth error:', err.message);
     return null;
   }
 }
