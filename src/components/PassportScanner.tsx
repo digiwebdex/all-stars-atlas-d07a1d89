@@ -17,6 +17,8 @@ interface ExtractedData {
   lastName: string;
   country: string;
   countryCode: string;
+  nationality: string;
+  phone: string;
   passportNumber: string;
   birthDate: string;
   birthPlace: string;
@@ -390,6 +392,16 @@ const PassportScanner = ({ open, onOpenChange, onConfirm }: PassportScannerProps
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Nationality</Label>
+                    <Input value={extracted.nationality} onChange={(e) => updateField("nationality", e.target.value)} placeholder="Bangladeshi" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Phone</Label>
+                    <Input value={extracted.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="01XXXXXXXXX" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Issuance Date</Label>
                     <Input type="date" value={extracted.issuanceDate} onChange={(e) => updateField("issuanceDate", e.target.value)} className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
                   </div>
@@ -419,6 +431,7 @@ const PassportScanner = ({ open, onOpenChange, onConfirm }: PassportScannerProps
 function emptyExtracted(): ExtractedData {
   return {
     title: "", firstName: "", lastName: "", country: "", countryCode: "",
+    nationality: "", phone: "",
     passportNumber: "", birthDate: "", birthPlace: "",
     gender: "", issuanceDate: "", expiryDate: "",
   };
