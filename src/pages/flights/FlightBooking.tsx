@@ -554,9 +554,17 @@ const FlightBooking = () => {
             {/* STEP 1: Flight Details */}
             {step === 1 && (
               <>
-                <FlightSegmentCard flight={outboundFlight} label="Outbound" searchedCabinClass={searchCabin ? searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1) : undefined} />
-                {isRoundTrip && <FlightSegmentCard flight={returnFlight} label="Return" searchedCabinClass={searchCabin ? searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1) : undefined} />}
-                {!isRoundTrip && !outboundFlight && (
+                {isMultiCity ? (
+                  multiCityFlights.map((mcFlight: any, idx: number) => (
+                    <FlightSegmentCard key={idx} flight={mcFlight} label={`Flight ${idx + 1}: ${mcFlight?.origin || "—"} → ${mcFlight?.destination || "—"}`} searchedCabinClass={searchCabin ? searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1) : undefined} />
+                  ))
+                ) : (
+                  <>
+                    <FlightSegmentCard flight={outboundFlight} label="Outbound" searchedCabinClass={searchCabin ? searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1) : undefined} />
+                    {isRoundTrip && <FlightSegmentCard flight={returnFlight} label="Return" searchedCabinClass={searchCabin ? searchCabin.charAt(0).toUpperCase() + searchCabin.slice(1) : undefined} />}
+                  </>
+                )}
+                {!isMultiCity && !isRoundTrip && !outboundFlight && (
                   <Card className="border-dashed"><CardContent className="py-8 text-center"><p className="text-sm text-muted-foreground">Loading flight details...</p></CardContent></Card>
                 )}
               </>
