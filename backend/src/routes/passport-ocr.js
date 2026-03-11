@@ -131,7 +131,8 @@ router.post('/ocr', async (req, res) => {
 
     const extracted = parseDocument(fullText);
 
-    res.json({ success: true, extracted, rawText: fullText });
+    // Include confidence info in response
+    res.json({ success: true, extracted: extracted.result, confidence: extracted.confidence, crossValidation: extracted.crossValidation, rawText: fullText });
   } catch (err) {
     console.error('[OCR] Error:', err.message);
     res.status(500).json({ message: 'OCR processing failed', error: err.message });
