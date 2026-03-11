@@ -369,9 +369,17 @@ const FlightBooking = () => {
     if (data.birthDate) updated[pi].dob = data.birthDate;
     if (data.passportNumber) updated[pi].passport = data.passportNumber;
     if (data.expiryDate) updated[pi].passportExpiry = data.expiryDate;
-    if (data.country) {
-      updated[pi].documentCountry = data.country;
-      if (!updated[pi].nationality) updated[pi].nationality = data.country;
+    if (data.countryCode || data.country) {
+      // countryCode is 3-letter ISO (BGD), map to 2-letter for documentCountry dropdown
+      const code3to2: Record<string, string> = {
+        BGD:'BD',IND:'IN',USA:'US',GBR:'GB',PAK:'PK',NPL:'NP',LKA:'LK',MMR:'MM',
+        MYS:'MY',SGP:'SG',ARE:'AE',SAU:'SA',KWT:'KW',QAT:'QA',BHR:'BH',OMN:'OM',
+        CAN:'CA',AUS:'AU',JPN:'JP',KOR:'KR',CHN:'CN',THA:'TH',IDN:'ID',PHL:'PH',
+        TUR:'TR',EGY:'EG',DEU:'DE',FRA:'FR',ITA:'IT',ESP:'ES',NLD:'NL',CHE:'CH',
+      };
+      const iso2 = data.countryCode ? (code3to2[data.countryCode] || data.countryCode.substring(0, 2)) : "BD";
+      updated[pi].documentCountry = iso2;
+      if (!updated[pi].nationality) updated[pi].nationality = iso2;
     }
     setPassengers(updated);
     setFieldErrors({});
