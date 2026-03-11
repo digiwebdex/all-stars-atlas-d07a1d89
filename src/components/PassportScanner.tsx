@@ -350,21 +350,25 @@ const PassportScanner = ({ open, onOpenChange, onConfirm }: PassportScannerProps
                     <Input value={extracted.title} onChange={(e) => updateField("title", e.target.value)} placeholder="MR" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">First Name</Label>
+                    <Label className="text-xs text-muted-foreground">Given/First Name</Label>
                     <Input value={extracted.firstName} onChange={(e) => updateField("firstName", e.target.value)} placeholder="" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Last Name</Label>
+                    <Label className="text-xs text-muted-foreground">Surname/Last Name</Label>
                     <Input value={extracted.lastName} onChange={(e) => updateField("lastName", e.target.value)} placeholder="" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Country</Label>
-                    <Input value={extracted.country} onChange={(e) => updateField("country", e.target.value)} placeholder="BD" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
+                    <Input value={extracted.country} onChange={(e) => updateField("country", e.target.value)} placeholder="Bangladesh" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Country Code</Label>
+                    <Input value={extracted.countryCode} onChange={(e) => updateField("countryCode", e.target.value)} placeholder="BGD" className="h-9 bg-muted/30 border-accent/20 focus:border-accent font-mono uppercase" maxLength={3} />
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Passport Number</Label>
                     <Input value={extracted.passportNumber} onChange={(e) => updateField("passportNumber", e.target.value)} placeholder="" className="h-9 bg-muted/30 border-accent/20 focus:border-accent" />
