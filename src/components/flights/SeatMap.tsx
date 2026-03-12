@@ -154,22 +154,6 @@ const SeatMap = ({
     );
   }
 
-  const { seats, columns, exitRows: exitRowNums, aisleAfter } = parsed;
-
-  // Group seats by row
-  const rows = useMemo(() => {
-    const map = new Map<number, Seat[]>();
-    for (const seat of seats) {
-      if (!map.has(seat.row)) map.set(seat.row, []);
-      map.get(seat.row)!.push(seat);
-    }
-    // Sort seats within each row by column
-    for (const [, rowSeats] of map) {
-      rowSeats.sort((a, b) => a.col.localeCompare(b.col));
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
-  }, [seats]);
-
   const cols = columns.length;
   const isNarrow = cols <= 4;
   const exitRowSet = new Set(exitRowNums);
