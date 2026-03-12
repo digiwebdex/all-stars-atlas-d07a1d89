@@ -10,6 +10,7 @@ import {
   Plane, Clock, ArrowRight, Filter, X, Luggage,
   SlidersHorizontal, ChevronDown, ChevronUp, Shield, Timer,
   CircleDot, Zap, TrendingUp, Check, Info, FileText,
+  ChevronLeft, ChevronRight, Star,
 } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
