@@ -1245,7 +1245,7 @@ function parseTD2(mrzLines, r, verified) {
   const line2 = mrzLines[1];
 
   if (line1.length >= 5) {
-    r.country = line1.substring(2, 5).replace(/</g, '');
+    r.country = correctMRZCountryCode(line1.substring(2, 5).replace(/</g, ''));
     const nameSection = line1.substring(5);
     const parts = nameSection.split(/<<+/).filter(Boolean);
     if (parts.length >= 1) r.lastName = parts[0].replace(/</g, ' ').trim();
