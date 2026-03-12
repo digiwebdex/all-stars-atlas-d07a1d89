@@ -1,7 +1,7 @@
 # Seven Trip — Working Deployment Commands
 
 > **Auto-updated** with every change. Copy-paste ready commands for your VPS.
-> Last updated: 2026-03-12 (v3.7.8 — Round-trip dedup fix: all combos now preserved)
+> Last updated: 2026-03-12 (v3.7.9 — Branded fares from Sabre, round-trip dedup fix)
 
 ---
 
