@@ -1456,7 +1456,6 @@ const FlightResults = () => {
 
   const applyFilters = useCallback((list: any[]) => {
     return list.filter((f: any) => {
-      // Airline filter from top bar
       if (airlineFilter && f.airlineCode !== airlineFilter) return false;
       if (selectedAirlines.length > 0 && !selectedAirlines.includes(f.airline)) return false;
       if (f.price < priceRange[0] || f.price > priceRange[1]) return false;
@@ -1466,13 +1465,54 @@ const FlightResults = () => {
         if (stopsFilter === "1" && stops !== 1) return false;
         if (stopsFilter === "2+" && stops < 2) return false;
       }
-      if (f.departureTime) {
-        const hour = new Date(f.departureTime).getHours();
-        if (hour < departTimeRange[0] || hour > departTimeRange[1]) return false;
+      // Departure time
+      if (departTimeRange[0] !== 0 || departTimeRange[1] !== 24) {
+        if (f.departureTime) {
+          const hour = new Date(f.departureTime).getHours();
+          if (hour < departTimeRange[0] || hour >= departTimeRange[1]) return false;
+        }
+      }
+      // Arrival time
+      if (arrivalTimeRange[0] !== 0 || arrivalTimeRange[1] !== 24) {
+        if (f.arrivalTime) {
+          const hour = new Date(f.arrivalTime).getHours();
+          if (hour < arrivalTimeRange[0] || hour >= arrivalTimeRange[1]) return false;
+        }
+      }
+      // Refundable only
+      if (refundableOnly && !f.refundable) return false;
+      // Alliance filter
+      if (selectedAlliances.length > 0) {
+        const alliance = AIRLINE_ALLIANCES[f.airlineCode || ''];
+        if (!alliance || !selectedAlliances.includes(alliance)) return false;
+      }
+      // Duration filter
+      if (durationRange[0] > 0 || durationRange[1] < 5000) {
+        const dur = f.durationMinutes || 0;
+        if (dur > 0 && (dur < durationRange[0] || dur > durationRange[1])) return false;
+      }
+      // Layover airports
+      if (selectedLayoverAirports.length > 0) {
+        const codes = (f.stopCodes || []).length > 0 ? f.stopCodes : (f.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        if (!codes.some((c: string) => selectedLayoverAirports.includes(c))) return false;
+      }
+      // Layover duration
+      if (layoverDurationRange[0] > 0 || layoverDurationRange[1] < 5000) {
+        const legs = f.legs || [];
+        if (legs.length > 1) {
+          let valid = false;
+          for (let i = 0; i < legs.length - 1; i++) {
+            if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+              const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+              if (m >= layoverDurationRange[0] && m <= layoverDurationRange[1]) { valid = true; break; }
+            }
+          }
+          if (!valid) return false;
+        }
       }
       return true;
     });
-  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange]);
+  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, selectedLayoverAirports, layoverDurationRange]);
 
   const filteredOutbound = useMemo(() => sortFlights(applyFilters(outboundFlights), sortBy), [outboundFlights, sortBy, applyFilters]);
   const filteredReturn = useMemo(() => sortFlights(applyFilters(returnFlights), sortBy), [returnFlights, sortBy, applyFilters]);
