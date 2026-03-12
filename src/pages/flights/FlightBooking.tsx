@@ -80,6 +80,96 @@ function fmtDate(dt?: string) { if (!dt) return "—"; try { const d = new Date(
 
 /* ─── No hardcoded defaults — extras only from real API data ─── */
 
+/* ─── Airline Support Info Dialog ─── */
+const AirlineSupportDialog = ({ 
+  airline, airlineCode, hasBaggage, hasHandBaggage, hasSeatMap, hasExtras, seatMapSource, ancillarySource 
+}: { 
+  airline?: string; airlineCode?: string; hasBaggage: boolean; hasHandBaggage: boolean; 
+  hasSeatMap: boolean; hasExtras: boolean; seatMapSource: string; ancillarySource: string;
+}) => {
+  const features = [
+    { 
+      label: "Checked Baggage Info", 
+      available: hasBaggage, 
+      source: "BFM Search",
+      desc: hasBaggage ? "Baggage allowance provided by the airline's booking system" : "Not provided in this fare — check airline website",
+    },
+    { 
+      label: "Hand Baggage Info", 
+      available: hasHandBaggage, 
+      source: "BFM Search",
+      desc: hasHandBaggage ? "Cabin baggage allowance included in fare data" : "Not provided in this fare — typically 7kg for Economy",
+    },
+    { 
+      label: "Seat Map / Seat Selection", 
+      available: hasSeatMap, 
+      source: seatMapSource === "sabre" ? "Sabre SOAP (Live)" : seatMapSource,
+      desc: hasSeatMap ? "Real-time seat availability from the airline's system" : "Not available — seats will be assigned at check-in",
+    },
+    { 
+      label: "Extra Baggage (Paid)", 
+      available: hasExtras && ancillarySource !== "none" && ancillarySource !== "bfm", 
+      source: ancillarySource === "sabre" ? "Sabre GAO" : ancillarySource === "tti" ? "TTI" : "Post-booking",
+      desc: "Extra baggage and meal options are available after booking (requires PNR). You can add extras from your dashboard after confirming your booking.",
+      postBooking: true,
+    },
+    { 
+      label: "Meal Selection (Paid)", 
+      available: hasExtras && ancillarySource !== "none" && ancillarySource !== "bfm", 
+      source: ancillarySource === "sabre" ? "Sabre GAO" : ancillarySource === "tti" ? "TTI" : "Post-booking",
+      desc: "Premium meal options become available after PNR creation. Free SSR meal requests (Halal, Vegetarian, etc.) can be added in Step 2.",
+      postBooking: true,
+    },
+  ];
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="text-xs text-accent hover:underline inline-flex items-center gap-1">
+          <Info className="w-3 h-3" /> Airline data availability
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            {airlineCode && (
+              <img src={`https://images.kiwi.com/airlines/64/${airlineCode}.png`} alt="" className="w-6 h-6 object-contain" 
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            )}
+            {airline || "Airline"} — Data Availability
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 mt-2">
+          <p className="text-xs text-muted-foreground">
+            Data availability depends on what the airline provides through its booking system. Features marked as unavailable are not provided by this airline for this specific fare.
+          </p>
+          {features.map((f, i) => (
+            <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${f.available ? "border-accent/20 bg-accent/5" : "border-border bg-muted/30"}`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${f.available ? "bg-accent/20" : "bg-muted"}`}>
+                {f.available ? <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> : <X className="w-3 h-3 text-muted-foreground" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{f.label}</p>
+                  {(f as any).postBooking && <Badge variant="outline" className="text-[9px] h-4">After Booking</Badge>}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{f.desc}</p>
+                {f.available && <p className="text-[10px] text-accent mt-1">Source: {f.source}</p>}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] text-muted-foreground">
+              <strong>Extra baggage & meal purchases</strong> require a PNR (booking reference). Book your flight first, then add extras from your Dashboard → Bookings.
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 /* ─── Add-on Card ─── */
 const AddOnCard = ({ item, selected, onSelect, multi }: { item: { id: string; name: string; price: number; desc: string; icon?: string }; selected: boolean; onSelect: () => void; multi?: boolean }) => (
   <label className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl border cursor-pointer transition-all ${
