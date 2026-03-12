@@ -246,8 +246,8 @@ const SearchWidget = () => {
 
   // Multi-city segments
   interface FlightSegment {
-    from: typeof AIRPORTS[0] | null;
-    to: typeof AIRPORTS[0] | null;
+    from: Airport | null;
+    to: Airport | null;
     date?: Date;
   }
   const [multiCitySegments, setMultiCitySegments] = useState<FlightSegment[]>([
@@ -255,25 +255,58 @@ const SearchWidget = () => {
     { from: AIRPORTS[1], to: null, date: undefined },
   ]);
 
-  const updateSegment = useCallback((index: number, field: keyof FlightSegment, value: any) => {
+  const domesticAirports = useMemo(() => AIRPORTS.filter(a => a.country === "BD"), []);
+  const internationalAirports = useMemo(() => AIRPORTS.filter(a => a.country !== "BD"), []);
+
+  const getScopedDestinationAirports = useCallback((from: Airport | null) => {
+    if (flightScope === "domestic") return domesticAirports;
+    if (from?.country === "BD") return internationalAirports;
+    return AIRPORTS;
+  }, [flightScope, domesticAirports, internationalAirports]);
+
+  const isScopeInvalidRoute = useCallback((from: Airport | null, to: Airport | null) => {
+    if (!from || !to) return false;
+    if (from.code === to.code) return true;
+    if (flightScope === "domestic") return from.country !== "BD" || to.country !== "BD";
+    return from.country === "BD" && to.country === "BD";
+  }, [flightScope]);
+
+  const updateSegment = useCallback((index: number, field: keyof FlightSegment, value: FlightSegment[keyof FlightSegment]) => {
     setMultiCitySegments(prev => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      const nextSegment: FlightSegment = { ...updated[index], [field]: value };
+
+      if (field === "from" && nextSegment.from && nextSegment.to) {
+        const allowedTo = getScopedDestinationAirports(nextSegment.from);
+        const toStillAllowed = allowedTo.some(a => a.code === nextSegment.to?.code);
+        if (!toStillAllowed || nextSegment.from.code === nextSegment.to.code) {
+          nextSegment.to = null;
+        }
+      }
+
+      if (field === "to" && nextSegment.from && nextSegment.to && isScopeInvalidRoute(nextSegment.from, nextSegment.to)) {
+        nextSegment.to = null;
+      }
+
+      updated[index] = nextSegment;
+
       // Auto-set next segment's "from" to this segment's "to"
       if (field === "to" && index < updated.length - 1) {
-        updated[index + 1] = { ...updated[index + 1], from: value };
+        updated[index + 1] = { ...updated[index + 1], from: nextSegment.to };
       }
+
       // When changing a date, clear dates of later segments that are now invalid
-      if (field === "date" && value) {
+      if (field === "date" && value instanceof Date) {
         for (let i = index + 1; i < updated.length; i++) {
           if (updated[i].date && updated[i].date! < value) {
             updated[i] = { ...updated[i], date: undefined };
           }
         }
       }
+
       return updated;
     });
-  }, []);
+  }, [getScopedDestinationAirports, isScopeInvalidRoute]);
 
   const addSegment = useCallback(() => {
     if (multiCitySegments.length >= 5) return;
@@ -286,58 +319,65 @@ const SearchWidget = () => {
     setMultiCitySegments(prev => prev.filter((_, i) => i !== index));
   }, [multiCitySegments.length]);
 
-  const domesticAirports = useMemo(() => AIRPORTS.filter(a => a.country === "BD"), []);
-  const internationalAirports = useMemo(() => AIRPORTS.filter(a => a.country !== "BD"), []);
-
   // Domestic: both FROM and TO must be BD airports
   // International: at least one airport must be outside BD — filter dropdown accordingly
   const scopedFromAirports = flightScope === "domestic" ? domesticAirports : AIRPORTS;
   const scopedToAirports = useMemo(() => {
-    let list: typeof AIRPORTS;
-    if (flightScope === "domestic") { list = domesticAirports; }
-    else if (fromAirport?.country === "BD") { list = internationalAirports; }
-    else { list = AIRPORTS; }
-    // Exclude the selected FROM airport so user can't pick same airport
-    if (fromAirport) list = list.filter(a => a.code !== fromAirport.code);
-    return list;
-  }, [flightScope, fromAirport, domesticAirports, internationalAirports]);
+    const list = getScopedDestinationAirports(fromAirport);
+    if (!fromAirport) return list;
+    return list.filter(a => a.code !== fromAirport.code);
+  }, [fromAirport, getScopedDestinationAirports]);
 
   // Filter multi-city airports based on scope
   const scopedMultiCityFromAirports = flightScope === "domestic" ? domesticAirports : AIRPORTS;
-  const getMultiCityToAirports = useCallback((fromSegment: typeof AIRPORTS[0] | null) => {
-    let list: typeof AIRPORTS;
-    if (flightScope === "domestic") { list = domesticAirports; }
-    else if (fromSegment?.country === "BD") { list = internationalAirports; }
-    else { list = AIRPORTS; }
-    if (fromSegment) list = list.filter(a => a.code !== fromSegment.code);
-    return list;
-  }, [flightScope, domesticAirports, internationalAirports]);
+  const getMultiCityToAirports = useCallback((fromSegment: Airport | null) => {
+    const list = getScopedDestinationAirports(fromSegment);
+    if (!fromSegment) return list;
+    return list.filter(a => a.code !== fromSegment.code);
+  }, [getScopedDestinationAirports]);
 
   // When switching scope, reset airports that don't match
   useEffect(() => {
     if (flightScope === "domestic") {
-      if (fromAirport && fromAirport.country !== "BD") setFromAirport(domesticAirports[0]);
-      if (toAirport && toAirport.country !== "BD") setToAirport(domesticAirports[1] || null);
-      // Reset multi-city segments to BD airports
-      setMultiCitySegments(prev => prev.map((seg, i) => ({
-        from: seg.from && seg.from.country !== "BD" ? (i === 0 ? domesticAirports[0] : null) : seg.from,
-        to: seg.to && seg.to.country !== "BD" ? null : seg.to,
-        date: seg.date,
-      })));
-    } else {
-      // International: if both are BD, set destination to first international
-      if (fromAirport?.country === "BD" && toAirport?.country === "BD") {
-        setToAirport(null);
-      }
-    }
-  }, [flightScope]);
+      if (fromAirport && fromAirport.country !== "BD") setFromAirport(domesticAirports[0] ?? null);
+      if (toAirport && toAirport.country !== "BD") setToAirport(domesticAirports[1] ?? null);
 
-  // Clear TO if it matches FROM (prevent same-airport selection)
+      setMultiCitySegments(prev => {
+        let changed = false;
+        const updated = prev.map((seg, i) => {
+          const nextFrom = seg.from && seg.from.country !== "BD" ? (i === 0 ? domesticAirports[0] ?? null : null) : seg.from;
+          const nextTo = seg.to && seg.to.country !== "BD" ? null : seg.to;
+          if (nextFrom !== seg.from || nextTo !== seg.to) {
+            changed = true;
+            return { ...seg, from: nextFrom, to: nextTo };
+          }
+          return seg;
+        });
+        return changed ? updated : prev;
+      });
+      return;
+    }
+
+    setMultiCitySegments(prev => {
+      let changed = false;
+      const updated = prev.map((seg) => {
+        if (seg.from?.country === "BD" && seg.to?.country === "BD") {
+          changed = true;
+          return { ...seg, to: null };
+        }
+        return seg;
+      });
+      return changed ? updated : prev;
+    });
+  }, [flightScope, domesticAirports, fromAirport, toAirport]);
+
+  // Keep route valid when FROM/TO changes
   useEffect(() => {
-    if (fromAirport && toAirport && fromAirport.code === toAirport.code) {
+    if (!fromAirport || !toAirport) return;
+    if (isScopeInvalidRoute(fromAirport, toAirport)) {
       setToAirport(null);
     }
-  }, [fromAirport]);
+  }, [fromAirport, toAirport, isScopeInvalidRoute]);
 
   const [hotelCity, setHotelCity] = useState("Cox's Bazar");
   const [checkIn, setCheckIn] = useState<Date>();
@@ -395,18 +435,43 @@ const SearchWidget = () => {
   const totalHotelGuests = hotelGuests.adults + hotelGuests.children;
 
   const swapAirports = useCallback(() => {
-    const oldFrom = fromAirport;
-    setFromAirport(toAirport);
-    setToAirport(oldFrom);
-  }, [toAirport, fromAirport]);
+    if (!fromAirport || !toAirport) return;
+
+    const nextFrom = toAirport;
+    const nextTo = fromAirport;
+
+    if (isScopeInvalidRoute(nextFrom, nextTo)) {
+      toast.error(
+        flightScope === "domestic"
+          ? "Domestic flights must be within Bangladesh"
+          : "International flights need at least one airport outside Bangladesh"
+      );
+      return;
+    }
+
+    setFromAirport(nextFrom);
+    setToAirport(nextTo);
+  }, [fromAirport, toAirport, isScopeInvalidRoute, flightScope]);
 
   // ====== SEARCH HANDLERS ======
   const handleFlightSearch = () => {
     if (tripType === "multicity") {
       const validSegments = multiCitySegments.filter(s => s.from && s.to);
       if (validSegments.length < 2) { toast.error("Please add at least 2 flight segments"); return; }
+
+      const hasInvalidRoute = validSegments.some(s => isScopeInvalidRoute(s.from!, s.to!));
+      if (hasInvalidRoute) {
+        toast.error(
+          flightScope === "domestic"
+            ? "Domestic multi-city flights must be within Bangladesh"
+            : "International multi-city flights need at least one airport outside Bangladesh per segment"
+        );
+        return;
+      }
+
       const missingDates = validSegments.some(s => !s.date);
       if (missingDates) { toast.error("Please select departure date for all segments"); return; }
+
       const params = new URLSearchParams({
         tripType: "multicity",
         adults: String(passengers.adults), children: String(passengers.children), infants: String(passengers.infants),
@@ -419,10 +484,16 @@ const SearchWidget = () => {
       navigate(`/flights?${params.toString()}`);
       return;
     }
+
     if (!fromAirport || !toAirport) { toast.error("Please select departure and arrival airports"); return; }
-    if (fromAirport.code === toAirport.code) { toast.error("Departure and arrival airports cannot be the same"); return; }
-    if (flightScope === "domestic" && (fromAirport.country !== "BD" || toAirport.country !== "BD")) { toast.error("Domestic flights must be within Bangladesh"); return; }
-    if (flightScope === "international" && fromAirport.country === "BD" && toAirport.country === "BD") { toast.error("International flights need at least one airport outside Bangladesh"); return; }
+    if (isScopeInvalidRoute(fromAirport, toAirport)) {
+      toast.error(
+        flightScope === "domestic"
+          ? "Domestic flights must be within Bangladesh"
+          : "International flights need at least one airport outside Bangladesh"
+      );
+      return;
+    }
     if (!departDate) { toast.error("Please select a departure date"); addDateError("depart"); return; }
     if (tripType === 'roundtrip' && !returnDate) { toast.error("Please select a return date for round trip"); addDateError("return"); return; }
     const params = new URLSearchParams({
