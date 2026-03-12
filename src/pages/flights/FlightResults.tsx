@@ -2351,9 +2351,9 @@ const FlightResults = () => {
             {/* Dates — clickable with calendar picker */}
             <Popover open={showDateEdit} onOpenChange={setShowDateEdit}>
               <PopoverTrigger asChild>
-                <button className="bg-foreground/80 border border-muted-foreground/30 hover:border-accent/50 rounded-lg px-3 py-2 flex items-center gap-1.5 shrink-0 transition-colors">
-                  <CalendarDays className="w-3.5 h-3.5 text-background/70" />
-                  <span className="text-xs sm:text-sm font-medium text-background">
+                <button className="bg-muted border border-border hover:border-primary/50 rounded-lg px-4 py-2.5 flex items-center gap-2 shrink-0 transition-colors">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">
                     {isMultiCity
                       ? multiCitySegments.map(s => s.date).filter(Boolean).join(", ")
                       : departDate
@@ -2362,7 +2362,7 @@ const FlightResults = () => {
                     }
                     {isRoundTrip && returnDate && (() => { try { return ` — ${format(new Date(returnDate), "dd MMM, EEE")}`; } catch { return ""; } })()}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-background/50" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-3" align="start">
