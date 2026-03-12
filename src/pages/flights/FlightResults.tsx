@@ -1095,6 +1095,7 @@ const FlightCard = ({
   const cancellationPolicy = flight.cancellationPolicy || null;
   const dateChangePolicy = flight.dateChangePolicy || null;
   const [activeDetailTab, setActiveDetailTab] = useState("itinerary");
+  const [showFareOptions, setShowFareOptions] = useState(false);
 
   const stopsLabel = stops === 0 ? "Non-Stop" : `${stops} Stop${stops > 1 ? "s" : ""}`;
   const cabinDisplay = bookingClass ? `${cabin} - ${bookingClass}` : cabin;
