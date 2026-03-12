@@ -1223,7 +1223,7 @@ const MultiCityFlightCard = ({
                   {/* Baggage + class (only on first row) or segment label */}
                   <div className="hidden sm:flex flex-col items-end gap-0.5 shrink-0 w-24">
                     <div className="flex items-center gap-1.5 text-[10px]">
-                      {seg.handBaggage && <span className="flex items-center gap-0.5 text-accent"><Briefcase className="w-3 h-3" /> {seg.handBaggage}</span>}
+                      {seg.handBaggage && <span className="flex items-center gap-0.5 text-accent"><Luggage className="w-3 h-3" /> {seg.handBaggage}</span>}
                       {seg.baggage && <span className="flex items-center gap-0.5 text-accent"><Luggage className="w-3 h-3" /> {seg.baggage}</span>}
                     </div>
                     <span className="text-[10px] text-muted-foreground">Class: {flight.bookingClass || "E"}</span>
