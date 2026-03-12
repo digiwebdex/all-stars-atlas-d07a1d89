@@ -871,7 +871,7 @@ const RoundTripFlightCard = ({
             const combinedPrice = totalPrice;
 
             const DISCOUNT_PCT = 6.30;
-            const AIT_VAT_PCT = 3.0;
+            const AIT_VAT_PCT = 0.3;
 
             const fareRows: { paxType: string; baseFare: number; tax: number; other: number; discount: number; aitVat: number; count: number; amount: number }[] = [];
             if (paxAdults > 0) {
