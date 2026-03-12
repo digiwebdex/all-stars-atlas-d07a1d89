@@ -502,18 +502,40 @@ function normalizeGroupedResponse(response, params) {
           const legDesc = legDescs.find(ld => ld.id === legRef) || {};
           const schedules = legDesc.schedules || [];
 
-          const legs = schedules.map(sched => {
+          // Get the departure date for this leg from group description
+          const legDepartDate = groupDesc.legDescriptions?.[legIdx]?.departureDate || params.departDate || '';
+
+          const legs = schedules.map((sched, schedIdx) => {
             const schedRef = sched.ref;
             const schedDesc = scheduleDescs.find(sd => sd.id === schedRef) || {};
-            const dep = sched.departure || schedDesc.departure || {};
-            const arr = sched.arrival || schedDesc.arrival || {};
+            const dep = schedDesc.departure || sched.departure || {};
+            const arr = schedDesc.arrival || sched.arrival || {};
             const carrier = schedDesc.carrier || {};
+
+            // Reconstruct full datetime from date + time
+            // scheduleDescs have time like "21:20:00+06:00", need to prepend date
+            let depDateTime = dep.dateTime || null;
+            let arrDateTime = arr.dateTime || null;
+            if (!depDateTime && dep.time && legDepartDate) {
+              // For connecting flights, use departureDateAdjustment from sched
+              const depAdj = sched.departureDateAdjustment || 0;
+              const depDate = adjustDate(legDepartDate, depAdj);
+              depDateTime = `${depDate}T${dep.time}`;
+            }
+            if (!arrDateTime && arr.time && legDepartDate) {
+              const arrAdj = sched.departureDateAdjustment || 0;
+              // arrival might be next day
+              const arrDateAdj = (schedDesc.elapsedTime && dep.time && arr.time) ? 
+                (arr.time < dep.time ? arrAdj + 1 : arrAdj) : arrAdj;
+              const arrDate = adjustDate(legDepartDate, arrDateAdj);
+              arrDateTime = `${arrDate}T${arr.time}`;
+            }
 
             return {
               origin: dep.airport || '',
               destination: arr.airport || '',
-              departureTime: dep.dateTime || dep.time || null,
-              arrivalTime: arr.dateTime || arr.time || null,
+              departureTime: depDateTime,
+              arrivalTime: arrDateTime,
               durationMinutes: schedDesc.elapsedTime || 0,
               duration: formatDuration(schedDesc.elapsedTime || 0),
               flightNumber: `${carrier.marketing || carrier.operating || ''}${carrier.marketingFlightNumber || ''}`,
