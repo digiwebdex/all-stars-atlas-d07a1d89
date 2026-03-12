@@ -1257,67 +1257,71 @@ const FlightResults = () => {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <div className="bg-card border-b border-border pt-36 lg:pt-48 pb-5">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-                <Plane className="w-5 h-5 text-accent" />
-                {isMultiCity ? (
-                  <>
-                    {multiCitySegments.map((s, i) => (
-                      <span key={i} className="flex items-center gap-1">
-                        {i > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
-                        <span>{s.from}</span>
-                      </span>
-                    ))}
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <span>{multiCitySegments[multiCitySegments.length - 1]?.to || "—"}</span>
-                    <Badge className="bg-blue-500/10 text-blue-600 border-0 text-[10px] ml-2">Multi-City</Badge>
-                  </>
-                ) : (
-                  <>
-                    {fromCode || "—"} <ArrowRight className="w-5 h-5" /> {toCode || "—"}
-                    {isRoundTrip && <Badge className="bg-accent/10 text-accent border-0 text-[10px] ml-2">Round Trip</Badge>}
-                  </>
-                )}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {isMultiCity ? (
-                  <>
-                    {multiCitySegments.map((s, i) => s.date).join(", ")} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-foreground">{totalMultiCityFlights} flights found</strong>
-                  </>
-                ) : (
-                  <>
-                    {departDate}{returnDate ? ` – ${returnDate}` : ""} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""}
-                    {isRoundTrip && hasDirections ? (
-                      <> · <strong className="text-accent">Showing {filteredPairs.length} flights &amp; {airlines.length} Airlines</strong> <span className="text-accent">(Fares include. AIT VAT)</span></>
+      <div className="bg-card border-b border-border pt-28 sm:pt-36 lg:pt-48 pb-5">
+        <div className="container mx-auto px-3 sm:px-4">
+          <Card className="shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
+                    <Plane className="w-5 h-5 text-accent shrink-0" />
+                    {isMultiCity ? (
+                      <>
+                        {multiCitySegments.map((s, i) => (
+                          <span key={i} className="flex items-center gap-1">
+                            {i > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
+                            <span>{s.from}</span>
+                          </span>
+                        ))}
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <span>{multiCitySegments[multiCitySegments.length - 1]?.to || "—"}</span>
+                        <Badge className="bg-blue-500/10 text-blue-600 border-0 text-[10px] ml-1">Multi-City</Badge>
+                      </>
                     ) : (
-                      <> · <strong className="text-foreground">{flights.length} flights found</strong>
-                        {sources.tti > 0 && <span className="text-muted-foreground ml-1">({sources.tti} Air Astra)</span>}
-                        {sources.sabre > 0 && <span className="text-muted-foreground ml-1">({sources.sabre} Sabre)</span>}
-                        {sources.flyhub > 0 && <span className="text-muted-foreground ml-1">({sources.flyhub} FlyHub)</span>}
+                      <>
+                        {fromCode || "—"} <ArrowRight className="w-5 h-5" /> {toCode || "—"}
+                        {isRoundTrip && <Badge className="bg-accent/10 text-accent border-0 text-[10px] ml-1">Round Trip</Badge>}
                       </>
                     )}
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/">Modify Search</Link>
-              </Button>
-              {cheapest > 0 && (
-                <Badge className="bg-accent/10 text-accent border-0 font-semibold h-9 px-3">
-                  From ৳{cheapest.toLocaleString()}
-                </Badge>
-              )}
-            </div>
-          </div>
+                  </h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">
+                    {isMultiCity ? (
+                      <>
+                        {multiCitySegments.map((s) => s.date).join(", ")} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""} · <strong className="text-foreground">{totalMultiCityFlights} flights found</strong>
+                      </>
+                    ) : (
+                      <>
+                        {departDate}{returnDate ? ` – ${returnDate}` : ""} · {totalPax} Passenger(s){cabinClass ? ` · ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}` : ""}
+                        {isRoundTrip && hasDirections ? (
+                          <> · <strong className="text-accent">Showing {filteredPairs.length} flights &amp; {airlines.length} Airlines</strong> <span className="text-accent">(Fares include. AIT VAT)</span></>
+                        ) : (
+                          <> · <strong className="text-foreground">{flights.length} flights found</strong>
+                            {sources.tti > 0 && <span className="text-muted-foreground ml-1">({sources.tti} Air Astra)</span>}
+                            {sources.sabre > 0 && <span className="text-muted-foreground ml-1">({sources.sabre} Sabre)</span>}
+                            {sources.flyhub > 0 && <span className="text-muted-foreground ml-1">({sources.flyhub} FlyHub)</span>}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-2 items-center shrink-0">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/">Modify Search</Link>
+                  </Button>
+                  {cheapest > 0 && (
+                    <Badge className="bg-accent/10 text-accent border-0 font-semibold h-8 sm:h-9 px-3 text-xs sm:text-sm">
+                      From ৳{cheapest.toLocaleString()}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {!hasRequiredParams ? (
           <Card>
             <CardContent className="py-16 text-center">
@@ -1331,7 +1335,7 @@ const FlightResults = () => {
           <div className="flex gap-6">
             {/* Sidebar filters */}
             <aside className="hidden lg:block w-64 shrink-0">
-              <Card className="sticky top-28">
+              <Card className="sticky top-28 shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filters</h3>
@@ -1347,9 +1351,9 @@ const FlightResults = () => {
 
             {/* Main content */}
             <div className="flex-1 space-y-3">
-              {/* Airline filter bar — real API data */}
+              {/* Airline filter bar — real API data, 3D card */}
               {airlineStats.length > 0 && !isMultiCity && (
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <Card className="shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60 overflow-hidden">
                   <div className="flex items-center">
                     <button className="shrink-0 px-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-r border-border">
                       <ChevronLeft className="w-4 h-4" />
@@ -1362,7 +1366,7 @@ const FlightResults = () => {
                             <button
                               key={a.code}
                               onClick={() => setAirlineFilter(isActive ? null : a.code)}
-                              className={`flex items-center gap-2.5 px-4 py-2.5 whitespace-nowrap border-r border-border last:border-r-0 transition-colors ${
+                              className={`flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap border-r border-border last:border-r-0 transition-colors ${
                                 isActive ? "bg-accent/10" : "hover:bg-muted/50"
                               }`}
                             >
@@ -1373,10 +1377,10 @@ const FlightResults = () => {
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                               <div className="text-left">
-                                <p className={`text-xs font-bold ${isActive ? "text-accent" : "text-foreground"}`}>
+                                <p className={`text-[11px] sm:text-xs font-bold ${isActive ? "text-accent" : "text-foreground"}`}>
                                   {a.code}
                                 </p>
-                                <p className={`text-[11px] ${isActive ? "text-accent" : "text-muted-foreground"}`}>
+                                <p className={`text-[10px] sm:text-[11px] ${isActive ? "text-accent" : "text-muted-foreground"}`}>
                                   BDT {a.cheapest.toLocaleString()} ({a.count})
                                 </p>
                               </div>
@@ -1389,12 +1393,12 @@ const FlightResults = () => {
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                </Card>
               )}
 
-              {/* Quick sort chips — Cheapest / Fastest / Best with real prices */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex gap-2 overflow-x-auto scrollbar-none">
+              {/* Quick sort chips — Cheapest / Fastest / Best, 3D cards */}
+              <div className="flex items-center justify-between gap-2 sm:gap-3">
+                <div className="flex gap-2 overflow-x-auto scrollbar-none flex-1 min-w-0">
                   {[
                     { key: "cheapest", label: "Cheapest", icon: TrendingUp, data: quickSortSummary.cheapest },
                     { key: "fastest", label: "Fastest", icon: Zap, data: quickSortSummary.fastest },
@@ -1406,18 +1410,18 @@ const FlightResults = () => {
                       <button
                         key={s.key}
                         onClick={() => setSortBy(s.key)}
-                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap transition-all border ${
+                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all ${
                           isActive
-                            ? "bg-card border-accent shadow-sm"
-                            : "bg-card border-border text-muted-foreground hover:border-foreground/30"
+                            ? "bg-card border border-accent shadow-[0_4px_16px_-4px_hsl(var(--accent)/0.3),0_1px_3px_hsl(var(--foreground)/0.06)]"
+                            : "bg-card border border-border shadow-[0_2px_8px_-2px_hsl(var(--foreground)/0.06)] hover:shadow-[0_4px_12px_-4px_hsl(var(--foreground)/0.1)] hover:border-foreground/20"
                         }`}
                       >
-                        <div className="flex items-center gap-1.5">
-                          <Icon className={`w-4 h-4 ${isActive ? "text-accent" : ""}`} />
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? "text-accent" : ""}`} />
                           <span className={`font-bold ${isActive ? "text-foreground" : ""}`}>{s.label}</span>
                         </div>
                         {s.data && (
-                          <span className={`text-xs ${isActive ? "text-muted-foreground" : "text-muted-foreground/70"}`}>
+                          <span className={`text-[10px] sm:text-xs ${isActive ? "text-muted-foreground" : "text-muted-foreground/70"}`}>
                             BDT {s.data.price?.toLocaleString()}{s.data.duration ? ` | ${s.data.duration}` : ""}
                           </span>
                         )}
@@ -1425,7 +1429,7 @@ const FlightResults = () => {
                     );
                   })}
                 </div>
-                <Button variant="outline" size="sm" className="lg:hidden shrink-0" onClick={() => setShowFilters(true)}>
+                <Button variant="outline" size="sm" className="lg:hidden shrink-0 shadow-[0_2px_8px_-2px_hsl(var(--foreground)/0.06)]" onClick={() => setShowFilters(true)}>
                   <Filter className="w-4 h-4 mr-1" /> Filters
                 </Button>
               </div>
