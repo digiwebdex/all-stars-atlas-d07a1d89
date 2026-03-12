@@ -15,6 +15,7 @@ import {
   UtensilsCrossed, Plus, Briefcase, Users, FileText,
   AlertCircle, CheckCircle2, Timer, AlertTriangle, Package,
   ScanLine, Search, Share2, Save, Upload, X, Eye,
+  Accessibility, Heart, Dog, Baby, MessageSquare, Star,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
@@ -173,6 +174,76 @@ const FlightBooking = () => {
 
   const [selectedMeal, setSelectedMeal] = useState("");
   const [selectedBaggage, setSelectedBaggage] = useState<string[]>([]);
+
+  // ── Special Services (SSR) — sent to GDS for all airlines ──
+  const MEAL_CODES = [
+    { code: "none", label: "No Preference", icon: "🍽️" },
+    { code: "AVML", label: "Asian Vegetarian", icon: "🥗" },
+    { code: "VGML", label: "Vegetarian (Lacto-Ovo)", icon: "🥬" },
+    { code: "MOML", label: "Muslim / Halal", icon: "🍖" },
+    { code: "KSML", label: "Kosher", icon: "✡️" },
+    { code: "DBML", label: "Diabetic", icon: "💊" },
+    { code: "CHML", label: "Child Meal", icon: "🧒" },
+    { code: "BBML", label: "Baby Meal", icon: "👶" },
+    { code: "GFML", label: "Gluten-Free", icon: "🌾" },
+    { code: "LFML", label: "Low Fat", icon: "🥗" },
+    { code: "LCML", label: "Low Calorie", icon: "🍃" },
+    { code: "NLML", label: "Low Salt", icon: "🧂" },
+    { code: "SFML", label: "Seafood", icon: "🦐" },
+    { code: "FPML", label: "Fruit Platter", icon: "🍎" },
+    { code: "RVML", label: "Raw Vegetarian", icon: "🥒" },
+    { code: "SPML", label: "Special (Notify Airline)", icon: "⭐" },
+  ];
+  const WHEELCHAIR_OPTIONS = [
+    { code: "none", label: "No assistance needed" },
+    { code: "WCHR", label: "Wheelchair to aircraft door (can climb stairs)" },
+    { code: "WCHS", label: "Wheelchair to seat (cannot climb stairs)" },
+    { code: "WCHC", label: "Wheelchair — fully immobile (carried to seat)" },
+  ];
+
+  interface PaxSpecialServices {
+    meal: string;
+    wheelchair: string;
+    medical: boolean;
+    medicalDetails: string;
+    blind: boolean;
+    deaf: boolean;
+    unaccompaniedMinor: boolean;
+    umnrAge: string;
+    pet: string;
+    petDetails: string;
+    frequentFlyer: { airline: string; number: string };
+    specialRequest: string;
+    destinationAddress: string;
+  }
+
+  const emptySSR = (): PaxSpecialServices => ({
+    meal: "none", wheelchair: "none", medical: false, medicalDetails: "",
+    blind: false, deaf: false, unaccompaniedMinor: false, umnrAge: "",
+    pet: "none", petDetails: "", frequentFlyer: { airline: "", number: "" },
+    specialRequest: "", destinationAddress: "",
+  });
+
+  const [paxSpecialServices, setPaxSpecialServices] = useState<PaxSpecialServices[]>(() => paxTypes.map(() => emptySSR()));
+  const [ssrExpanded, setSsrExpanded] = useState<number | null>(null);
+
+  const updatePaxSSR = (pi: number, field: string, value: any) => {
+    setPaxSpecialServices(prev => {
+      const updated = [...prev];
+      if (field.includes('.')) {
+        const [parent, child] = field.split('.');
+        (updated[pi] as any)[parent] = { ...(updated[pi] as any)[parent], [child]: value };
+      } else {
+        (updated[pi] as any)[field] = value;
+      }
+      return updated;
+    });
+  };
+
+  const hasAnySSR = paxSpecialServices.some(s =>
+    s.meal !== "none" || s.wheelchair !== "none" || s.medical || s.blind || s.deaf ||
+    s.unaccompaniedMinor || s.pet !== "none" || s.frequentFlyer.number || s.specialRequest.trim()
+  );
 
   // Ancillary data from real API ONLY — no fake fallbacks
   const [mealOptions, setMealOptions] = useState<{ id: string; name: string; price: number; desc: string; icon?: string }[]>([]);
@@ -481,6 +552,23 @@ const FlightBooking = () => {
         },
         contactInfo: { email: passengers[0]?.email, phone: passengers[0]?.phone },
         travelDocuments: Object.entries(travelDocsUploaded).map(([key, doc]) => ({ ...doc, passengerIndex: parseInt(key.split('_')[1] || '0'), docType: key.split('_')[0] })),
+        specialServices: {
+          perPassenger: paxSpecialServices.map(ss => ({
+            meal: ss.meal !== "none" ? ss.meal : undefined,
+            wheelchair: ss.wheelchair !== "none" ? ss.wheelchair : undefined,
+            medical: ss.medical || undefined,
+            medicalDetails: ss.medicalDetails || undefined,
+            blind: ss.blind || undefined,
+            deaf: ss.deaf || undefined,
+            unaccompaniedMinor: ss.unaccompaniedMinor || undefined,
+            umnrAge: ss.umnrAge || undefined,
+            pet: ss.pet !== "none" ? ss.pet : undefined,
+            petDetails: ss.petDetails || undefined,
+            frequentFlyer: ss.frequentFlyer.number ? ss.frequentFlyer : undefined,
+            specialRequest: ss.specialRequest.trim() || undefined,
+            destinationAddress: ss.destinationAddress.trim() || undefined,
+          })),
+        },
       };
       const result = await api.post<any>("/flights/book", bookingData);
       setBookingResult(result);
@@ -896,8 +984,176 @@ const FlightBooking = () => {
                   })}
                 </CardContent>
               </Card>
-            )}
+             )}
 
+            {/* ── SPECIAL SERVICES (SSR) — Always shown in Step 2 for all airlines ── */}
+            {step === 2 && (
+              <Card>
+                <CardHeader className="bg-accent/5 border-b border-border">
+                  <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                    <Star className="w-5 h-5 text-accent" /> Special Services
+                    <Badge className="bg-accent/10 text-accent border-0 text-[9px] ml-2">All Airlines</Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">Request meals, wheelchair, medical assistance, frequent flyer, pets, and more — sent directly to the airline.</p>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-5 space-y-3">
+                  {paxTypes.map((paxType, pi) => {
+                    const ss = paxSpecialServices[pi] || emptySSR();
+                    const isExpanded = ssrExpanded === pi;
+                    const paxHasSSR = ss.meal !== "none" || ss.wheelchair !== "none" || ss.medical || ss.blind || ss.deaf || ss.unaccompaniedMinor || ss.pet !== "none" || ss.frequentFlyer.number || ss.specialRequest.trim();
+                    return (
+                      <div key={pi} className="border border-border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setSsrExpanded(isExpanded ? null : pi)}
+                          className="w-full flex items-center justify-between p-3 sm:p-4 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-accent" />
+                            <span className="text-sm font-semibold">{passengers[pi]?.firstName || paxType.label}</span>
+                            <Badge variant="outline" className="text-[10px]">{paxType.label}</Badge>
+                            {paxHasSSR && <Badge className="bg-accent/10 text-accent border-0 text-[9px]">SSR Added</Badge>}
+                          </div>
+                          <ArrowRight className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                        </button>
+
+                        {isExpanded && (
+                          <div className="p-3 sm:p-4 space-y-4 border-t border-border">
+                            {/* Meal Preference */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs sm:text-sm flex items-center gap-1.5">
+                                <UtensilsCrossed className="w-3.5 h-3.5 text-accent" /> Meal Preference
+                              </Label>
+                              <Select value={ss.meal} onValueChange={(v) => updatePaxSSR(pi, "meal", v)}>
+                                <SelectTrigger className="h-10 sm:h-11"><SelectValue placeholder="Select meal" /></SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                  {MEAL_CODES.map(m => (
+                                    <SelectItem key={m.code} value={m.code}>{m.icon} {m.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Wheelchair / Mobility Assistance */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs sm:text-sm flex items-center gap-1.5">
+                                <Accessibility className="w-3.5 h-3.5 text-accent" /> Wheelchair / Mobility Assistance
+                              </Label>
+                              <Select value={ss.wheelchair} onValueChange={(v) => updatePaxSSR(pi, "wheelchair", v)}>
+                                <SelectTrigger className="h-10 sm:h-11"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {WHEELCHAIR_OPTIONS.map(w => (
+                                    <SelectItem key={w.code} value={w.code}>{w.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Medical, Blind, Deaf toggles */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${ss.medical ? "border-accent bg-accent/5" : "border-border hover:border-accent/30"}`}>
+                                <Checkbox checked={ss.medical} onCheckedChange={(v) => updatePaxSSR(pi, "medical", !!v)} />
+                                <div>
+                                  <p className="text-xs font-medium flex items-center gap-1"><Heart className="w-3 h-3 text-destructive" /> Medical</p>
+                                  <p className="text-[10px] text-muted-foreground">MEDA assistance</p>
+                                </div>
+                              </label>
+                              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${ss.blind ? "border-accent bg-accent/5" : "border-border hover:border-accent/30"}`}>
+                                <Checkbox checked={ss.blind} onCheckedChange={(v) => updatePaxSSR(pi, "blind", !!v)} />
+                                <div>
+                                  <p className="text-xs font-medium flex items-center gap-1"><Eye className="w-3 h-3" /> Blind</p>
+                                  <p className="text-[10px] text-muted-foreground">BLND — visual impairment</p>
+                                </div>
+                              </label>
+                              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${ss.deaf ? "border-accent bg-accent/5" : "border-border hover:border-accent/30"}`}>
+                                <Checkbox checked={ss.deaf} onCheckedChange={(v) => updatePaxSSR(pi, "deaf", !!v)} />
+                                <div>
+                                  <p className="text-xs font-medium flex items-center gap-1">👂 Deaf</p>
+                                  <p className="text-[10px] text-muted-foreground">DEAF — hearing impairment</p>
+                                </div>
+                              </label>
+                            </div>
+
+                            {/* Medical Details */}
+                            {ss.medical && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Medical Details (optional)</Label>
+                                <Input value={ss.medicalDetails} onChange={(e) => updatePaxSSR(pi, "medicalDetails", e.target.value)} placeholder="e.g. Requires oxygen, stretcher, medical clearance" className="h-10" />
+                              </div>
+                            )}
+
+                            {/* Unaccompanied Minor */}
+                            {paxType.type === "child" && (
+                              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${ss.unaccompaniedMinor ? "border-accent bg-accent/5" : "border-border hover:border-accent/30"}`}>
+                                <Checkbox checked={ss.unaccompaniedMinor} onCheckedChange={(v) => updatePaxSSR(pi, "unaccompaniedMinor", !!v)} />
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium flex items-center gap-1"><Baby className="w-3 h-3 text-accent" /> Unaccompanied Minor (UMNR)</p>
+                                  <p className="text-[10px] text-muted-foreground">Child travelling alone — airline will escort</p>
+                                </div>
+                              </label>
+                            )}
+
+                            {/* Pet */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs sm:text-sm flex items-center gap-1.5">
+                                <Dog className="w-3.5 h-3.5 text-accent" /> Travelling with Pet
+                              </Label>
+                              <Select value={ss.pet} onValueChange={(v) => updatePaxSSR(pi, "pet", v)}>
+                                <SelectTrigger className="h-10 sm:h-11"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No pet</SelectItem>
+                                  <SelectItem value="PETC">🐕 Pet in Cabin (PETC)</SelectItem>
+                                  <SelectItem value="AVIH">📦 Pet in Cargo Hold (AVIH)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {ss.pet !== "none" && (
+                                <Input value={ss.petDetails} onChange={(e) => updatePaxSSR(pi, "petDetails", e.target.value)} placeholder="e.g. Small dog, 5kg, carrier dimensions 40x30x20cm" className="h-10 mt-1.5" />
+                              )}
+                            </div>
+
+                            {/* Frequent Flyer */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs sm:text-sm flex items-center gap-1.5">
+                                <Star className="w-3.5 h-3.5 text-accent" /> Frequent Flyer Number
+                              </Label>
+                              <div className="grid grid-cols-3 gap-2">
+                                <Input value={ss.frequentFlyer.airline} onChange={(e) => updatePaxSSR(pi, "frequentFlyer.airline", e.target.value.toUpperCase().slice(0, 2))} placeholder="Airline (EK)" maxLength={2} className="h-10 uppercase" />
+                                <div className="col-span-2">
+                                  <Input value={ss.frequentFlyer.number} onChange={(e) => updatePaxSSR(pi, "frequentFlyer.number", e.target.value)} placeholder="FF Number" className="h-10" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Destination Address (DOCA) — international */}
+                            {!domestic && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs sm:text-sm">Destination Address (for immigration)</Label>
+                                <Input value={ss.destinationAddress} onChange={(e) => updatePaxSSR(pi, "destinationAddress", e.target.value)} placeholder="e.g. Hilton Dubai Creek, Baniyas Rd, Dubai" className="h-10" />
+                              </div>
+                            )}
+
+                            {/* Free-text Special Request */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs sm:text-sm flex items-center gap-1.5">
+                                <MessageSquare className="w-3.5 h-3.5 text-accent" /> Special Request (free text)
+                              </Label>
+                              <Input value={ss.specialRequest} onChange={(e) => updatePaxSSR(pi, "specialRequest", e.target.value)} placeholder="e.g. Bassinet needed, adjacent seats, extra pillow" maxLength={70} className="h-10" />
+                              <p className="text-[10px] text-muted-foreground">{ss.specialRequest.length}/70 characters — sent as OSI to the airline</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {hasAnySSR && (
+                    <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-lg border border-accent/10">
+                      <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
+                      <p className="text-xs text-muted-foreground">Your special service requests will be submitted to the airline upon booking confirmation.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {/* STEP 3: Extras — ONLY when real airline API data is available */}
             {step === extrasStep && hasRealExtras && (
               <Card>
@@ -1015,6 +1271,32 @@ const FlightBooking = () => {
                         <div className="flex flex-wrap gap-2">
                           {selectedMeal && <Badge variant="outline" className="text-xs"><UtensilsCrossed className="w-3 h-3 mr-1" />{mealOptions.find(m => m.id === selectedMeal)?.name}</Badge>}
                           {selectedBaggage.map(id => <Badge key={id} variant="outline" className="text-xs"><Luggage className="w-3 h-3 mr-1" />{baggageOptions.find(b => b.id === id)?.name}</Badge>)}
+                        </div>
+                      </div>
+                    )}
+                    {hasAnySSR && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Special Services (SSR)</h4>
+                        <div className="space-y-1.5">
+                          {paxSpecialServices.map((ss, pi) => {
+                            const items: string[] = [];
+                            if (ss.meal !== "none") items.push(MEAL_CODES.find(m => m.code === ss.meal)?.label || ss.meal);
+                            if (ss.wheelchair !== "none") items.push(WHEELCHAIR_OPTIONS.find(w => w.code === ss.wheelchair)?.label?.split("(")[0]?.trim() || ss.wheelchair);
+                            if (ss.medical) items.push("Medical (MEDA)");
+                            if (ss.blind) items.push("Blind (BLND)");
+                            if (ss.deaf) items.push("Deaf (DEAF)");
+                            if (ss.unaccompaniedMinor) items.push("Unaccompanied Minor");
+                            if (ss.pet !== "none") items.push(ss.pet === "PETC" ? "Pet in Cabin" : "Pet in Cargo");
+                            if (ss.frequentFlyer.number) items.push(`FF: ${ss.frequentFlyer.airline || ""}${ss.frequentFlyer.number}`);
+                            if (ss.specialRequest.trim()) items.push(`"${ss.specialRequest.trim()}"`);
+                            if (items.length === 0) return null;
+                            return (
+                              <div key={pi} className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-xs font-medium">{passengers[pi]?.firstName || `Pax ${pi + 1}`}:</span>
+                                {items.map((item, idx) => <Badge key={idx} variant="outline" className="text-[10px]">{item}</Badge>)}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

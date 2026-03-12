@@ -9,7 +9,7 @@ const { notifyBookingConfirm } = require('../services/notify');
 const { searchFlights: ttiSearch, createBooking: ttiCreateBooking } = require('./tti-flights');
 const { searchFlights: bdfSearch } = require('./bdf-flights');
 const { searchFlights: flyhubSearch } = require('./flyhub-flights');
-const { searchFlights: sabreSearch } = require('./sabre-flights');
+const { searchFlights: sabreSearch, createBooking: sabreCreateBooking } = require('./sabre-flights');
 const { searchFlights: galileoSearch } = require('./galileo-flights');
 const { searchFlights: ndcSearch } = require('./ndc-flights');
 const { searchAllLCCs } = require('./lcc-flights');
@@ -514,7 +514,7 @@ function resolvePaymentDeadline(airlineTimeLimit, departureTime, isDomestic) {
 // POST /flights/book
 router.post('/book', authenticate, async (req, res) => {
   try {
-    const { flightData, returnFlightData, passengers, isRoundTrip, isDomestic, payLater, paymentMethod, totalAmount, baseFare, taxes, serviceCharge, addOns, contactInfo, travelDocuments } = req.body;
+    const { flightData, returnFlightData, passengers, isRoundTrip, isDomestic, payLater, paymentMethod, totalAmount, baseFare, taxes, serviceCharge, addOns, contactInfo, travelDocuments, specialServices } = req.body;
     const bookingId = uuidv4();
     const bookingRef = `ST-FL-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(Math.floor(Math.random()*999)).padStart(3,'0')}`;
 
@@ -541,6 +541,7 @@ router.post('/book', authenticate, async (req, res) => {
       isRoundTrip: !!isRoundTrip,
       isDomestic: domestic,
       addOns: addOns || {},
+      specialServices: specialServices || {},
       baseFare, taxes, serviceCharge,
       travelDocuments: travelDocuments || [],
     };
@@ -568,6 +569,27 @@ router.post('/book', authenticate, async (req, res) => {
         }
       } catch (ttiErr) {
         console.error('[Booking] TTI CreateBooking exception:', ttiErr.message, '— proceeding with local booking');
+      }
+    }
+
+    // If this is a Sabre-sourced flight, create PNR with SSR in Sabre
+    if (!gdsPnr && (flightSource === 'sabre' || flightData?._sabreSource)) {
+      console.log('[Booking] Sabre flight detected — creating GDS booking with SSR...');
+      try {
+        gdsBookingResult = await sabreCreateBooking({
+          flightData,
+          passengers: passengers || [],
+          contactInfo: contactInfo || {},
+          specialServices: specialServices || {},
+        });
+        if (gdsBookingResult.success && gdsBookingResult.pnr) {
+          gdsPnr = gdsBookingResult.pnr;
+          console.log('[Booking] Sabre PNR created:', gdsPnr);
+        } else {
+          console.warn('[Booking] Sabre booking failed:', gdsBookingResult.error, '— proceeding with local booking only');
+        }
+      } catch (sabreErr) {
+        console.error('[Booking] Sabre CreateBooking exception:', sabreErr.message, '— proceeding with local booking');
       }
     }
 
