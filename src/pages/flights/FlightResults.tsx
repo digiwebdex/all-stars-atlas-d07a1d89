@@ -1521,8 +1521,8 @@ const FlightCard = ({
                     const paxChildren = parseInt(cardSearchParams.get("children") || "0");
                     const paxInfants = parseInt(cardSearchParams.get("infants") || "0");
                     // Discount and AIT VAT percentages from server-side per-airline fare rules
-                    const DISCOUNT_PCT = f.fareRules?.discount ?? markupSettings.discount;
-                    const AIT_VAT_PCT = f.fareRules?.aitVat ?? markupSettings.aitVat;
+                    const DISCOUNT_PCT = flight.fareRules?.discount ?? 6.30;
+                    const AIT_VAT_PCT = flight.fareRules?.aitVat ?? 0.3;
 
                     const fareRows: { paxType: string; baseFare: number; tax: number; other: number; discount: number; aitVat: number; count: number; amount: number }[] = [];
 
