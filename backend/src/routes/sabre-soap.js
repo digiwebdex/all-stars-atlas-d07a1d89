@@ -164,20 +164,19 @@ async function getSeatMap(params) {
     </Security>
   </SOAP-ENV:Header>
   <SOAP-ENV:Body>
-    <EnhancedSeatMapRQ xmlns="http://stl-ip.transportation.sabre.com/ssp/EnhancedSeatMapTransaction" version="6.0.0">
+    <EnhancedSeatMapRQ xmlns="http://stl.sabre.com/Merchandising/v6" version="6">
       <SeatMapQueryEnhanced>
         <RequestType>Payload</RequestType>
-        <Flight>
-          <HaulType>${haulType}</HaulType>
-          <origin>${params.origin}</origin>
-          <destination>${params.destination}</destination>
+        <Flight origin="${params.origin}" destination="${params.destination}">
           <DepartureDate>${params.departureDate}</DepartureDate>
-          <Marketing carrier="${params.marketingCarrier}" FlightNumber="${params.flightNumber}"/>
-          <Operating carrier="${params.operatingCarrier || params.marketingCarrier}" FlightNumber="${params.flightNumber}"/>
+          <Marketing carrier="${params.marketingCarrier}">${params.flightNumber}</Marketing>
         </Flight>
         <CabinDefinition>
           <RBD>${rbd}</RBD>
         </CabinDefinition>
+        <POS>
+          <PCC>${config.pcc}</PCC>
+        </POS>
       </SeatMapQueryEnhanced>
     </EnhancedSeatMapRQ>
   </SOAP-ENV:Body>
@@ -253,22 +252,19 @@ async function getAncillaryOffers(params) {
     </Security>
   </SOAP-ENV:Header>
   <SOAP-ENV:Body>
-    <GetAncillaryOffersRQ xmlns="http://stl-ip.transportation.sabre.com/ssp/AncillaryOffersSearch" version="3.0.0">
-      <DisplayOrder>BY_ANCILLARY</DisplayOrder>
+    <GetAncillaryOffersRQ xmlns="http://stl.sabre.com/Merchandising/v4" version="3.0.0">
       <RequestType>Stateless</RequestType>
       <SummaryOnly>false</SummaryOnly>
-      <FlightSegment>
-        <Origin>${params.origin}</Origin>
-        <Destination>${params.destination}</Destination>
-        <DepartureDate>${params.departureDate}</DepartureDate>${params.departureTime ? `
-        <DepartureTime>${params.departureTime}</DepartureTime>` : ''}
-        <MarketingCarrier>${params.marketingCarrier}</MarketingCarrier>
-        <FlightNumber>${params.flightNumber}</FlightNumber>
+      <FlightSegment origin="${params.origin}" destination="${params.destination}" departureDate="${params.departureDate}"${params.departureTime ? ` departureTime="${params.departureTime}"` : ''}>
+        <Marketing carrier="${params.marketingCarrier}">${params.flightNumber}</Marketing>
+        <Operating carrier="${params.operatingCarrier || params.marketingCarrier}">${params.flightNumber}</Operating>
         <BookingCode>${bookingCode}</BookingCode>
-        <OperatingCarrier>${params.operatingCarrier || params.marketingCarrier}</OperatingCarrier>
         <CabinCode>${cabinCode}</CabinCode>
       </FlightSegment>
       ${paxTypes.join('\n      ')}
+      <POS>
+        <PCC>${config.pcc}</PCC>
+      </POS>
     </GetAncillaryOffersRQ>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>`;
