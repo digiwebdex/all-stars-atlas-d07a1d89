@@ -1502,6 +1502,56 @@ const FlightResults = () => {
   const hasRequiredParams = isMultiCity ? multiCitySegments.length >= 2 : (!!fromCode && !!toCode && !!departDate);
   const isRoundTrip = !!returnDate && !isMultiCity;
 
+  // Initialize inline edit state from URL params
+  useEffect(() => {
+    setEditFrom(fromCode); setEditTo(toCode);
+    setEditDepart(departDate ? new Date(departDate) : undefined);
+    setEditReturn(returnDate ? new Date(returnDate) : undefined);
+    setEditAdults(parseInt(adults)); setEditChildren(parseInt(children)); setEditInfants(parseInt(infants));
+    setEditCabin(cabinClass);
+  }, [fromCode, toCode, departDate, returnDate, adults, children, infants, cabinClass]);
+
+  // Navigate with new params helper
+  const applySearchEdit = useCallback(() => {
+    const p = new URLSearchParams();
+    if (editFrom) p.set("from", editFrom);
+    if (editTo) p.set("to", editTo);
+    if (editDepart) p.set("depart", format(editDepart, "yyyy-MM-dd"));
+    if (editReturn) p.set("return", format(editReturn, "yyyy-MM-dd"));
+    p.set("adults", String(editAdults));
+    if (editChildren > 0) p.set("children", String(editChildren));
+    if (editInfants > 0) p.set("infants", String(editInfants));
+    if (editCabin) p.set("cabin", editCabin);
+    if (isMultiCity) p.set("tripType", "multicity");
+    navigate(`/flights?${p.toString()}`);
+    setShowRouteEdit(false); setShowDateEdit(false); setShowPaxEdit(false);
+  }, [editFrom, editTo, editDepart, editReturn, editAdults, editChildren, editInfants, editCabin, isMultiCity, navigate]);
+
+  // Prev / Next day navigation
+  const shiftDate = useCallback((days: number) => {
+    const p = new URLSearchParams(searchParams.toString());
+    if (departDate) {
+      const d = new Date(departDate);
+      d.setDate(d.getDate() + days);
+      if (d >= new Date(new Date().toDateString())) {
+        p.set("depart", format(d, "yyyy-MM-dd"));
+      }
+    }
+    if (returnDate && days > 0) {
+      const r = new Date(returnDate);
+      r.setDate(r.getDate() + days);
+      p.set("return", format(r, "yyyy-MM-dd"));
+    }
+    navigate(`/flights?${p.toString()}`);
+  }, [departDate, returnDate, searchParams, navigate]);
+
+  // Filtered airports for inline search
+  const filteredAirports = useMemo(() => {
+    if (!airportSearch) return AIRPORTS.slice(0, 10);
+    const q = airportSearch.toLowerCase();
+    return AIRPORTS.filter(a => a.code.toLowerCase().includes(q) || a.city.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [airportSearch]);
+
   // Standard search params (one-way / round-trip)
   const params = (!isMultiCity && hasRequiredParams) ? {
     from: fromCode, to: toCode, date: departDate,
