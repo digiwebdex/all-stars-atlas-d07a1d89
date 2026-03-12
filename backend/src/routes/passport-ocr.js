@@ -1148,7 +1148,7 @@ function parseTD3(mrzLines, r, verified) {
     verified.passportNumber = verifyMRZField(ppField, ppCheck);
 
     // ── Nationality (pos 10-12) — separate from issuing country ──
-    const natCode = line2.substring(10, 13).replace(/</g, '');
+    const natCode = correctMRZCountryCode(line2.substring(10, 13).replace(/</g, ''));
     if (natCode && natCode.length >= 2) {
       r.nationality = natCode; // Will be resolved to full name in post-processing
       console.log('[OCR] MRZ nationality code:', natCode);
