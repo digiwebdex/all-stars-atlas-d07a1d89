@@ -2000,10 +2000,21 @@ const FlightResults = () => {
                 <h3 className="font-bold flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filters</h3>
                 <button onClick={() => setShowFilters(false)}><X className="w-5 h-5" /></button>
               </div>
-              <FilterPanel priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
-                airlines={airlines} selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
+              <FilterPanel
+                flights={allFlightsForFilters}
+                priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
+                selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
                 stopsFilter={stopsFilter} setStopsFilter={setStopsFilter}
-                departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange} onReset={resetFilters} />
+                departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange}
+                arrivalTimeRange={arrivalTimeRange} setArrivalTimeRange={setArrivalTimeRange}
+                durationRange={durationRange} setDurationRange={setDurationRange}
+                selectedAlliances={selectedAlliances} toggleAlliance={toggleAlliance}
+                refundableOnly={refundableOnly} setRefundableOnly={setRefundableOnly}
+                selectedLayoverAirports={selectedLayoverAirports} toggleLayoverAirport={toggleLayoverAirport}
+                layoverDurationRange={layoverDurationRange} setLayoverDurationRange={setLayoverDurationRange}
+                isRoundTrip={isRoundTrip} originCode={fromCode} destCode={toCode}
+                onReset={resetFilters}
+              />
               <Button className="w-full mt-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => setShowFilters(false)}>Apply Filters</Button>
             </motion.div>
           </>
