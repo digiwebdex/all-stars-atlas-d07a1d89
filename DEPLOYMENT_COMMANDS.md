@@ -1,7 +1,7 @@
 # Seven Trip — Working Deployment Commands
 
 > **Auto-updated** with every change. Copy-paste ready commands for your VPS.
-> Last updated: 2026-03-12 (v3.7.3 — White search bar redesign, bigger search modification chips)
+> Last updated: 2026-03-12 (v3.7.5 — Multi-city combined search, dark mode softened, flight details fix)
 
 ---
 
@@ -112,6 +112,9 @@ pm2 logs seventrip-api --lines 30
 
 | Date | Change | Deploy Command |
 |------|--------|----------------|
+| 2026-03-12 | Multi-city flight details expansion: added MultiCityExpandedDetails with 4 tabs | Frontend Only |
+| 2026-03-12 | Dark mode softened: pure black → softer dark gray (14% lightness) | Frontend Only |
+| 2026-03-12 | Multi-city combined search: single Sabre BFM request with combined itinerary cards | Standard Deployment |
 | 2026-03-12 | Search bar redesign: dark `bg-foreground` → white `bg-card` with `bg-muted` chips, larger text/padding | Frontend Only |
 | 2026-03-12 | Rewards route crash hotfix: replace undefined `authenticateToken` middleware with `authenticate` | Backend Only |
 | 2026-03-12 | Flight card responsiveness: reduced fixed-width columns, added `min-w-0` overflow prevention, scaled fonts for sidebar+content layout | Frontend Only |
