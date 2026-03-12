@@ -33,7 +33,7 @@ router.get('/balance', authenticate, async (req, res) => {
 });
 
 // ── GET /rewards/history — Points transaction history ──
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', authenticate, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
