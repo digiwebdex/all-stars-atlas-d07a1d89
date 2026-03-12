@@ -843,6 +843,39 @@ const FlightResults = () => {
   const filteredReturn = useMemo(() => sortFlights(applyFilters(returnFlights), sortBy), [returnFlights, sortBy, applyFilters]);
   const filteredAll = useMemo(() => sortFlights(applyFilters(flights), sortBy), [flights, sortBy, applyFilters]);
 
+  // Filtered + sorted round-trip pairs
+  const filteredPairs = useMemo(() => {
+    if (!isRoundTrip || !hasDirections) return [];
+    const filtered = roundTripPairs.filter(p => {
+      // Apply airline filter to outbound
+      if (selectedAirlines.length > 0 && !selectedAirlines.includes(p.outbound.airline)) return false;
+      // Apply price filter to total
+      if (p.totalPrice < priceRange[0] || p.totalPrice > priceRange[1]) return false;
+      // Stops filter on outbound
+      if (stopsFilter !== "all") {
+        const stops = p.outbound.stops ?? 0;
+        if (stopsFilter === "0" && stops !== 0) return false;
+        if (stopsFilter === "1" && stops !== 1) return false;
+        if (stopsFilter === "2+" && stops < 2) return false;
+      }
+      // Depart time on outbound
+      if (p.outbound.departureTime) {
+        const hour = new Date(p.outbound.departureTime).getHours();
+        if (hour < departTimeRange[0] || hour > departTimeRange[1]) return false;
+      }
+      return true;
+    });
+    // Sort by total price or outbound criteria
+    if (sortBy === "cheapest" || sortBy === "best") {
+      filtered.sort((a, b) => a.totalPrice - b.totalPrice);
+    } else if (sortBy === "fastest") {
+      filtered.sort((a, b) => ((a.outbound.durationMinutes || 0) + (a.returnFlight.durationMinutes || 0)) - ((b.outbound.durationMinutes || 0) + (b.returnFlight.durationMinutes || 0)));
+    } else if (sortBy === "departure") {
+      filtered.sort((a, b) => new Date(a.outbound.departureTime).getTime() - new Date(b.outbound.departureTime).getTime());
+    }
+    return filtered;
+  }, [roundTripPairs, isRoundTrip, hasDirections, selectedAirlines, priceRange, stopsFilter, departTimeRange, sortBy]);
+
   // Cabin class mismatch detection — searched for Business/First but API returned only Economy
   const searchedCabinNorm = (cabinClass || "").toLowerCase();
   const hasCabinMismatch = useMemo(() => {
