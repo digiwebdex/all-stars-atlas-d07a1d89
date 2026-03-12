@@ -870,10 +870,28 @@ const RoundTripFlightCard = ({
             const combinedTax = obTax + retTax;
             const combinedPrice = totalPrice;
 
+            const DISCOUNT_PCT = 6.30;
+            const AIT_VAT_PCT = 3.0;
+
             const fareRows: { paxType: string; baseFare: number; tax: number; other: number; discount: number; aitVat: number; count: number; amount: number }[] = [];
-            if (paxAdults > 0) fareRows.push({ paxType: "Adult", baseFare: combinedBase, tax: combinedTax, other: 0, discount: 0, aitVat: 0, count: paxAdults, amount: combinedPrice * paxAdults });
-            if (paxChildren > 0) fareRows.push({ paxType: "Child", baseFare: Math.round(combinedBase * 0.75), tax: combinedTax, other: 0, discount: 0, aitVat: 0, count: paxChildren, amount: Math.round(combinedPrice * 0.75) * paxChildren });
-            if (paxInfants > 0) fareRows.push({ paxType: "Infant", baseFare: Math.round(combinedBase * 0.1), tax: Math.round(combinedTax * 0.5), other: 0, discount: 0, aitVat: 0, count: paxInfants, amount: Math.round(combinedPrice * 0.1) * paxInfants });
+            if (paxAdults > 0) {
+              const disc = Math.round(combinedBase * DISCOUNT_PCT / 100);
+              const aitVat = Math.round((combinedBase - disc) * AIT_VAT_PCT / 100);
+              fareRows.push({ paxType: "Adult", baseFare: combinedBase, tax: combinedTax, other: 0, discount: disc, aitVat, count: paxAdults, amount: (combinedBase - disc + combinedTax + aitVat) * paxAdults });
+            }
+            if (paxChildren > 0) {
+              const childBase = Math.round(combinedBase * 0.75);
+              const disc = Math.round(childBase * DISCOUNT_PCT / 100);
+              const aitVat = Math.round((childBase - disc) * AIT_VAT_PCT / 100);
+              fareRows.push({ paxType: "Child", baseFare: childBase, tax: combinedTax, other: 0, discount: disc, aitVat, count: paxChildren, amount: (childBase - disc + combinedTax + aitVat) * paxChildren });
+            }
+            if (paxInfants > 0) {
+              const infantBase = Math.round(combinedBase * 0.1);
+              const infantTax = Math.round(combinedTax * 0.5);
+              const disc = Math.round(infantBase * DISCOUNT_PCT / 100);
+              const aitVat = Math.round((infantBase - disc) * AIT_VAT_PCT / 100);
+              fareRows.push({ paxType: "Infant", baseFare: infantBase, tax: infantTax, other: 0, discount: disc, aitVat, count: paxInfants, amount: (infantBase - disc + infantTax + aitVat) * paxInfants });
+            }
             const totalPayable = fareRows.reduce((s, r) => s + r.amount, 0);
 
             return (
@@ -1486,35 +1504,30 @@ const FlightCard = ({
                     const paxAdults = parseInt(cardSearchParams.get("adults") || "1");
                     const paxChildren = parseInt(cardSearchParams.get("children") || "0");
                     const paxInfants = parseInt(cardSearchParams.get("infants") || "0");
-                    // Use fareDetails from API if available, otherwise construct from top-level
+                    // Discount and AIT VAT percentages (admin-configurable defaults)
+                    const DISCOUNT_PCT = 6.30;
+                    const AIT_VAT_PCT = 3.0;
+
                     const fareRows: { paxType: string; baseFare: number; tax: number; other: number; discount: number; aitVat: number; count: number; amount: number }[] = [];
-                    
-                    // Check if flight has per-pax fare breakdown from API
-                    const fd = flight.fareDetails || [];
-                    if (fd.length > 0 && fd[0]?.baseFare) {
-                      // Use detailed fare breakdown — but fix currency: derive baseFare = amount - tax
-                      fd.forEach((f: any) => {
-                        const fTax = f.tax || f.taxes || 0;
-                        const fAmount = f.amount || f.total || 0;
-                        const fCount = f.count || f.paxCount || 1;
-                        // If amount exists, derive baseFare to guarantee sum integrity
-                        const fBase = fAmount > 0 ? Math.max(0, Math.round((fAmount / fCount) - fTax)) : Math.max(0, Math.round((price) - fTax));
-                        fareRows.push({
-                          paxType: f.paxType || "Adult",
-                          baseFare: fBase,
-                          tax: fTax,
-                          other: f.other || 0,
-                          discount: f.discount || 0,
-                          aitVat: f.aitVat || 0,
-                          count: fCount,
-                          amount: fAmount > 0 ? fAmount : (fBase + fTax + (f.other || 0) - (f.discount || 0) + (f.aitVat || 0)) * fCount,
-                        });
-                      });
-                    } else {
-                      // Construct from top-level — baseFare already derived as (price - taxes)
-                      if (paxAdults > 0) fareRows.push({ paxType: "Adult", baseFare, tax: taxes, other: 0, discount: 0, aitVat: 0, count: paxAdults, amount: price * paxAdults });
-                      if (paxChildren > 0) fareRows.push({ paxType: "Child", baseFare: Math.round(baseFare * 0.75), tax: taxes, other: 0, discount: 0, aitVat: 0, count: paxChildren, amount: Math.round(price * 0.75) * paxChildren });
-                      if (paxInfants > 0) fareRows.push({ paxType: "Infant", baseFare: Math.round(baseFare * 0.1), tax: Math.round(taxes * 0.5), other: 0, discount: 0, aitVat: 0, count: paxInfants, amount: Math.round(price * 0.1) * paxInfants });
+
+                    // Construct fare rows with discount and AIT VAT
+                    if (paxAdults > 0) {
+                      const disc = Math.round(baseFare * DISCOUNT_PCT / 100);
+                      const aitVat = Math.round((baseFare - disc) * AIT_VAT_PCT / 100);
+                      fareRows.push({ paxType: "Adult", baseFare, tax: taxes, other: 0, discount: disc, aitVat, count: paxAdults, amount: (baseFare - disc + taxes + aitVat) * paxAdults });
+                    }
+                    if (paxChildren > 0) {
+                      const childBase = Math.round(baseFare * 0.75);
+                      const disc = Math.round(childBase * DISCOUNT_PCT / 100);
+                      const aitVat = Math.round((childBase - disc) * AIT_VAT_PCT / 100);
+                      fareRows.push({ paxType: "Child", baseFare: childBase, tax: taxes, other: 0, discount: disc, aitVat, count: paxChildren, amount: (childBase - disc + taxes + aitVat) * paxChildren });
+                    }
+                    if (paxInfants > 0) {
+                      const infantBase = Math.round(baseFare * 0.1);
+                      const infantTax = Math.round(taxes * 0.5);
+                      const disc = Math.round(infantBase * DISCOUNT_PCT / 100);
+                      const aitVat = Math.round((infantBase - disc) * AIT_VAT_PCT / 100);
+                      fareRows.push({ paxType: "Infant", baseFare: infantBase, tax: infantTax, other: 0, discount: disc, aitVat, count: paxInfants, amount: (infantBase - disc + infantTax + aitVat) * paxInfants });
                     }
                     const totalPayable = fareRows.reduce((s, r) => s + r.amount, 0);
 
@@ -2158,13 +2171,42 @@ const FlightResults = () => {
         const dur = p.outbound.durationMinutes || 0;
         if (dur > 0 && (dur < durationRange[0] || dur > durationRange[1])) return false;
       }
+      // Layover airports filter
+      if (selectedLayoverAirports.length > 0) {
+        const obCodes = (p.outbound.stopCodes || []).length > 0 ? p.outbound.stopCodes : (p.outbound.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        const retCodes = (p.returnFlight.stopCodes || []).length > 0 ? p.returnFlight.stopCodes : (p.returnFlight.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        const allCodes = [...obCodes, ...retCodes];
+        if (!allCodes.some((c: string) => selectedLayoverAirports.includes(c))) return false;
+      }
+      // Layover duration filter
+      if (layoverDurationRange[0] > 0 || layoverDurationRange[1] < 5000) {
+        let valid = false;
+        for (const flight of [p.outbound, p.returnFlight]) {
+          const legs = flight.legs || [];
+          for (let i = 0; i < legs.length - 1; i++) {
+            if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+              const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+              if (m >= layoverDurationRange[0] && m <= layoverDurationRange[1]) { valid = true; break; }
+            }
+          }
+          if (valid) break;
+        }
+        // Only filter if there are layovers
+        const hasLayovers = (p.outbound.stops || 0) > 0 || (p.returnFlight.stops || 0) > 0;
+        if (hasLayovers && !valid) return false;
+      }
+      // Baggage filter
+      if (selectedBaggage.length > 0) {
+        const bag = String(p.outbound.baggage || '').trim();
+        if (!bag || !selectedBaggage.includes(bag)) return false;
+      }
       return true;
     });
     if (sortBy === "cheapest" || sortBy === "best") filtered.sort((a, b) => a.totalPrice - b.totalPrice);
     else if (sortBy === "fastest") filtered.sort((a, b) => ((a.outbound.durationMinutes || 0) + (a.returnFlight.durationMinutes || 0)) - ((b.outbound.durationMinutes || 0) + (b.returnFlight.durationMinutes || 0)));
     else if (sortBy === "departure") filtered.sort((a, b) => new Date(a.outbound.departureTime).getTime() - new Date(b.outbound.departureTime).getTime());
     return filtered;
-  }, [roundTripPairs, isRoundTrip, hasDirections, airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, sortBy]);
+  }, [roundTripPairs, isRoundTrip, hasDirections, airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, sortBy, selectedLayoverAirports, layoverDurationRange, selectedBaggage]);
 
   // Cabin class mismatch detection — searched for Business/First but API returned only Economy
   const searchedCabinNorm = (cabinClass || "").toLowerCase();

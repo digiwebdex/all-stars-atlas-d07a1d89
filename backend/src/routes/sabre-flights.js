@@ -439,7 +439,7 @@ function normalizeSabreResponse(raw, params) {
           currency,
           refundable: isRefundable,
           baggage: checkedBaggage || null,
-          handBaggage: null,
+          handBaggage: '7KG',
           aircraft: firstLeg.aircraft,
           legs,
           fareDetails: fareInfos.map(fi => ({
@@ -565,6 +565,11 @@ function normalizeGroupedResponse(response, params) {
               allBaggageInfos.push({ provisionType, baggage: baggageStr, segment: segmentInfo });
             }
           }
+        }
+
+        // Default hand baggage to 7KG if not provided (standard IATA cabin allowance)
+        if (!handBaggageGlobal) {
+          handBaggageGlobal = '7KG';
         }
 
         // Debug baggage result for first itinerary
