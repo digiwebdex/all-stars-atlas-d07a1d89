@@ -127,7 +127,7 @@ router.post('/redeem', authenticate, async (req, res) => {
 });
 
 // ── POST /rewards/validate-coupon — Validate coupon during checkout ──
-router.post('/validate-coupon', authenticateToken, async (req, res) => {
+router.post('/validate-coupon', authenticate, async (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ message: 'Coupon code required' });
 
