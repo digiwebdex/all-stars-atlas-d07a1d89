@@ -1,7 +1,7 @@
 # Seven Trip — Working Deployment Commands
 
 > **Auto-updated** with every change. Copy-paste ready commands for your VPS.
-> Last updated: 2026-03-12 (v3.7.5 — Multi-city combined search, dark mode softened, flight details fix)
+> Last updated: 2026-03-12 (v3.7.6 — Multi-city detail parity, airline filter bar for all trip types)
 
 ---
 
@@ -112,6 +112,8 @@ pm2 logs seventrip-api --lines 30
 
 | Date | Change | Deploy Command |
 |------|--------|----------------|
+| 2026-03-12 | Multi-city detail parity: full airport names, fare table (Discount/AIT VAT), baggage table, cancellation/date change tabs — matches one-way/round-trip | Frontend Only |
+| 2026-03-12 | Airline filter bar enabled for multi-city (removed `!isMultiCity` exclusion) | Frontend Only |
 | 2026-03-12 | Multi-city flight details expansion: added MultiCityExpandedDetails with 4 tabs | Frontend Only |
 | 2026-03-12 | Dark mode softened: pure black → softer dark gray (14% lightness) | Frontend Only |
 | 2026-03-12 | Multi-city combined search: single Sabre BFM request with combined itinerary cards | Standard Deployment |
