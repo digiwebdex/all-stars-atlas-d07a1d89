@@ -1041,17 +1041,36 @@ async function createBooking({ flightData, passengers, contactInfo, specialServi
     const legs = flightData?.legs || [];
     const segs = legs.length > 0 ? legs : [flightData];
 
-    segs.forEach((seg, i) => {
+    const toSabreDateTime = (value) => {
+      if (!value) return '';
+      const raw = String(value).trim();
+
+      // Convert ISO/offset datetime to schema-safe format: YYYY-MM-DDTHH:mm:ss (no timezone suffix)
+      const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/);
+      if (m) return `${m[1]}T${m[2]}:00`;
+
+      // If already in MM-DDTHH:mm style, keep as-is for Sabre compatibility
+      const shortM = raw.match(/^(\d{2}-\d{2})[T\s](\d{2}:\d{2})(?::\d{2})?$/);
+      if (shortM) return `${shortM[1]}T${shortM[2]}`;
+
+      return raw.replace('Z', '').split('.')[0].replace(/[+-]\d{2}:?\d{2}$/, '');
+    };
+
+    segs.forEach((seg) => {
+      const departureDateTime = toSabreDateTime(seg.departureTime);
+      const arrivalDateTime = toSabreDateTime(seg.arrivalTime);
+      const numericFlightNumber = String(seg.flightNumber || '').replace(/\D/g, '');
+
       paxSegments.push({
-        DepartureDateTime: seg.departureTime?.replace('Z', '').split('.')[0],
-        ArrivalDateTime: seg.arrivalTime?.replace('Z', '').split('.')[0],
-        FlightNumber: String(seg.flightNumber || '').replace(/[A-Z]{2}/i, ''),
-        NumberInParty: String(passengers.length),
+        DepartureDateTime: departureDateTime,
+        ArrivalDateTime: arrivalDateTime,
+        FlightNumber: numericFlightNumber,
+        NumberInParty: String(Math.max(passengers.length || 1, 1)),
         ResBookDesigCode: seg.bookingClass || 'Y',
         Status: 'NN',
         OriginLocation: { LocationCode: seg.origin || flightData.origin },
         DestinationLocation: { LocationCode: seg.destination || flightData.destination },
-        MarketingAirline: { Code: seg.airlineCode || flightData.airlineCode, FlightNumber: String(seg.flightNumber || '').replace(/[A-Z]{2}/i, '') },
+        MarketingAirline: { Code: seg.airlineCode || flightData.airlineCode, FlightNumber: numericFlightNumber },
       });
     });
 
