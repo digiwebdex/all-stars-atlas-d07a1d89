@@ -114,8 +114,8 @@ mkdir -p ~/projects
 cd ~/projects
 
 # Clone your frontend repo
-git clone https://github.com/your-username/seven-trip-frontend.git
-cd seven-trip-frontend
+git clone https://github.com/digiwebdex/all-stars-atlas-d07a1d89.git all-stars-atlas
+cd all-stars-atlas
 ```
 
 ### Install dependencies

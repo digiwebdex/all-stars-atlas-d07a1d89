@@ -2,7 +2,8 @@
 
 > Full-stack B2C travel agency web application. Book flights, hotels, visa, holiday packages, medical tourism, car rentals, eSIM, mobile recharge & utility bill payments.
 
-**Live URL:** [http://187.77.137.249](http://187.77.137.249) → [https://seventrip.com.bd](https://seventrip.com.bd)
+**Live URL:** [https://seven-trip.com](https://seven-trip.com)
+**GitHub:** [https://github.com/digiwebdex/all-stars-atlas-d07a1d89](https://github.com/digiwebdex/all-stars-atlas-d07a1d89)
 
 ---
 
