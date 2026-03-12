@@ -94,6 +94,7 @@ function mapBooking(b: any) {
     legs, seatsAvailable, returnFlight, isRoundTrip, source, fareDetails, timeLimit, origin, destination,
     details, passengers, contactInfo: b.contactInfo || {}, addOns: details.addOns || {},
     baseFare: details.baseFare || 0, taxes: details.taxes || 0, serviceCharge: details.serviceCharge || 0,
+    isDomestic: details.isDomestic ?? isDomesticRoute(origin, destination),
   };
 }
 
