@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   Plane, Building2, Search, Eye, Download, MoreHorizontal, RotateCcw, XCircle,
   FileText, Globe, Palmtree, CreditCard, Timer, Clock, Luggage, Shield,
-  ArrowRight, Users, AlertTriangle, Copy,
+  ArrowRight, Users, AlertTriangle, Copy, Upload,
 } from "lucide-react";
 import { downloadCSV } from "@/lib/csv-export";
 import { generateTicketPDF } from "@/lib/pdf-generator";
@@ -20,6 +20,7 @@ import { useDashboardBookings } from "@/hooks/useApiData";
 import DataLoader from "@/components/DataLoader";
 import { useToast } from "@/hooks/use-toast";
 import PaymentReminderBanner from "@/components/PaymentReminder";
+import TravelDocVerificationModal from "@/components/TravelDocVerificationModal";
 
 const statusTabs = ["All", "Reserved", "Pending", "In Progress", "Confirmed", "Completed", "Void", "Refund", "Exchange", "Expired", "Cancelled", "Un-Confirmed"];
 
@@ -46,6 +47,12 @@ const statusColors: Record<string, string> = {
   "Reserved": "bg-warning/10 text-warning border-warning/20", "On Hold": "bg-warning/10 text-warning border-warning/20", "on_hold": "bg-warning/10 text-warning border-warning/20",
   "Un-Confirmed": "bg-destructive/10 text-destructive border-destructive/20", "un_confirmed": "bg-destructive/10 text-destructive border-destructive/20",
 };
+
+const BD_AIRPORTS = ["DAC", "CXB", "CGP", "ZYL", "JSR", "RJH", "SPD", "BZL", "IRD", "TKR"];
+function isDomesticRoute(origin?: string, destination?: string): boolean {
+  if (!origin || !destination) return true;
+  return BD_AIRPORTS.includes(origin.toUpperCase()) && BD_AIRPORTS.includes(destination.toUpperCase());
+}
 
 const typeIcons: Record<string, typeof Plane> = { flight: Plane, hotel: Building2, visa: Globe, holiday: Palmtree };
 
@@ -87,6 +94,7 @@ function mapBooking(b: any) {
     legs, seatsAvailable, returnFlight, isRoundTrip, source, fareDetails, timeLimit, origin, destination,
     details, passengers, contactInfo: b.contactInfo || {}, addOns: details.addOns || {},
     baseFare: details.baseFare || 0, taxes: details.taxes || 0, serviceCharge: details.serviceCharge || 0,
+    isDomestic: details.isDomestic ?? isDomesticRoute(origin, destination),
   };
 }
 
@@ -95,7 +103,7 @@ function fmtDate(dt?: string) { if (!dt) return "—"; try { const d = new Date(
 function getAirlineLogo(code?: string): string | null { return code ? `https://images.kiwi.com/airlines/64/${code}.png` : null; }
 
 /* ─── Booking Detail Dialog (Inno Travel Tech Design) ─── */
-const BookingDetailDialog = ({ booking, onClose }: { booking: any; onClose: () => void }) => {
+const BookingDetailDialog = ({ booking, onClose, onPayNow }: { booking: any; onClose: () => void; onPayNow: (booking: any) => void }) => {
   const [activeTab, setActiveTab] = useState("itinerary");
   const { toast } = useToast();
   if (!booking) return null;
@@ -339,8 +347,8 @@ const BookingDetailDialog = ({ booking, onClose }: { booking: any; onClose: () =
           <Separator />
           <div className="flex flex-wrap gap-3">
             {(booking.status === "on_hold" || booking.status === "On Hold") && (
-              <Button className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold" onClick={() => { window.location.href = "/dashboard/payments"; }}>
-                <CreditCard className="w-4 h-4 mr-1.5" /> Pay Now
+              <Button className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold" onClick={() => onPayNow(booking)}>
+                <CreditCard className="w-4 h-4 mr-1.5" /> {!booking.isDomestic ? "Upload Docs & Pay" : "Pay Now"}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => {
@@ -419,6 +427,7 @@ const DashboardBookings = () => {
   const [perPage, setPerPage] = useState("10");
   const [page, setPage] = useState(1);
   const [viewBooking, setViewBooking] = useState<any>(null);
+  const [docVerifyBooking, setDocVerifyBooking] = useState<any>(null);
 
   const statusParam = activeTab !== "All" ? (activeTab === "Reserved" ? "on_hold" : activeTab.toLowerCase().replace(/[ -]/g, "_")) : undefined;
   const { data, isLoading, error, refetch } = useDashboardBookings({
@@ -443,6 +452,21 @@ const DashboardBookings = () => {
   const total = resolved?.total || bookings.length;
   const totalPages = Math.ceil(total / Number(perPage)) || 1;
   const paginatedBookings = bookings.slice((page - 1) * Number(perPage), page * Number(perPage));
+
+  // Handle Pay Now — gate international flights through document verification
+  const handlePayNow = (booking: any) => {
+    if (!booking.isDomestic && booking.type === "flight") {
+      setDocVerifyBooking(booking);
+    } else {
+      window.location.href = "/dashboard/payments";
+    }
+  };
+
+  const handleDocVerified = () => {
+    toast({ title: "Documents Verified ✓", description: "Passport & visa verified. Redirecting to payment..." });
+    setDocVerifyBooking(null);
+    window.location.href = "/dashboard/payments";
+  };
 
   return (
     <div className="space-y-6">
@@ -558,7 +582,9 @@ const DashboardBookings = () => {
                               <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); toast({ title: "Request Submitted", description: "Refund request submitted." }); }}><XCircle className="w-4 h-4 mr-2" /> Request Refund</DropdownMenuItem>
                             </>)}
                             {(booking.status === "On Hold" || booking.status === "on_hold") && (
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.location.href = "/dashboard/payments"; }}><CreditCard className="w-4 h-4 mr-2" /> Pay Now</DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePayNow(booking); }}>
+                                <CreditCard className="w-4 h-4 mr-2" /> {!booking.isDomestic && booking.type === "flight" ? "Upload Docs & Pay" : "Pay Now"}
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -588,7 +614,19 @@ const DashboardBookings = () => {
         </div>
       </div>
 
-      <BookingDetailDialog booking={viewBooking} onClose={() => setViewBooking(null)} />
+      <BookingDetailDialog booking={viewBooking} onClose={() => setViewBooking(null)} onPayNow={handlePayNow} />
+
+      {/* Travel Document Verification Modal — for international flights before payment */}
+      {docVerifyBooking && (
+        <TravelDocVerificationModal
+          open={!!docVerifyBooking}
+          onOpenChange={(open) => { if (!open) setDocVerifyBooking(null); }}
+          onVerified={handleDocVerified}
+          passengers={docVerifyBooking.passengers || []}
+          bookingRef={docVerifyBooking.id}
+          bookingId={docVerifyBooking.rawId}
+        />
+      )}
     </div>
   );
 };
