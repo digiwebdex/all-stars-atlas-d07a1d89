@@ -273,15 +273,13 @@ function normalizeSabreResponse(raw, params) {
   const flights = [];
 
   try {
-    const response = raw?.OTA_AirLowFareSearchRS || raw?.groupedItineraryResponse || raw;
-    const pricedItins = response?.PricedItineraries?.PricedItinerary
-      || response?.itineraryGroups?.[0]?.itineraries
-      || [];
-
-    if (pricedItins.length === 0 && response?.statistics) {
-      // Grouped itinerary response format
-      return normalizeGroupedResponse(response, params);
+    // Detect response format: grouped (newer) vs classic OTA
+    if (raw?.groupedItineraryResponse) {
+      return normalizeGroupedResponse(raw.groupedItineraryResponse, params);
     }
+
+    const response = raw?.OTA_AirLowFareSearchRS || raw;
+    const pricedItins = response?.PricedItineraries?.PricedItinerary || [];
 
     for (let idx = 0; idx < pricedItins.length; idx++) {
       const itin = pricedItins[idx];
