@@ -1335,7 +1335,7 @@ const FlightResults = () => {
           <div className="flex gap-6">
             {/* Sidebar filters */}
             <aside className="hidden lg:block w-64 shrink-0">
-              <Card className="sticky top-28">
+              <Card className="sticky top-28 shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filters</h3>
