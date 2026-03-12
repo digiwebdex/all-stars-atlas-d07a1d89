@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import {
   Plane, Clock, ArrowRight, Filter, X, Luggage,
   SlidersHorizontal, ChevronDown, ChevronUp, Shield, Timer,
   CircleDot, Zap, TrendingUp, Check, Info, FileText,
-  ChevronLeft, ChevronRight, Star,
+  ChevronLeft, ChevronRight, Star, Sun, Moon, Sunrise, Sunset,
 } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +33,27 @@ function getAirportName(code: string): string {
   return AIRPORT_NAME_MAP.get(code) || `${code} Airport`;
 }
 
+/* ─── Airline Alliance Mapping — real IATA memberships ─── */
+const AIRLINE_ALLIANCES: Record<string, string> = {
+  TK:'Star Alliance',SQ:'Star Alliance',AI:'Star Alliance',TG:'Star Alliance',NH:'Star Alliance',
+  UA:'Star Alliance',LH:'Star Alliance',AC:'Star Alliance',ET:'Star Alliance',MS:'Star Alliance',
+  TP:'Star Alliance',SK:'Star Alliance',CA:'Star Alliance',NZ:'Star Alliance',OZ:'Star Alliance',
+  SA:'Star Alliance',AV:'Star Alliance',CM:'Star Alliance',OU:'Star Alliance',LO:'Star Alliance',
+  SN:'Star Alliance',OS:'Star Alliance',A3:'Star Alliance',ZH:'Star Alliance',
+  MU:'SkyTeam',CZ:'SkyTeam',KE:'SkyTeam',GA:'SkyTeam',VN:'SkyTeam',SV:'SkyTeam',
+  AF:'SkyTeam',KL:'SkyTeam',DL:'SkyTeam',AZ:'SkyTeam',AR:'SkyTeam',AM:'SkyTeam',
+  CI:'SkyTeam',RO:'SkyTeam',ME:'SkyTeam',SU:'SkyTeam',
+  QR:'oneworld',BA:'oneworld',CX:'oneworld',MH:'oneworld',JL:'oneworld',AA:'oneworld',
+  IB:'oneworld',AY:'oneworld',QF:'oneworld',RJ:'oneworld',UL:'oneworld',S7:'oneworld',
+  LA:'oneworld',FJ:'oneworld',AT:'oneworld',
+};
+
+function fmtDurationMins(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m}m`;
+}
+
 function formatTime(datetime?: string): string {
   if (!datetime) return "--:--";
   try { const d = new Date(datetime); return isNaN(d.getTime()) ? datetime : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }); } catch { return datetime; }
@@ -53,57 +74,286 @@ function isNextDay(depart?: string, arrive?: string): boolean {
   return new Date(arrive).getDate() !== new Date(depart).getDate();
 }
 
-/* ─── Filter panel ─── */
+/* ─── Filter panel — BDFare-grade advanced filters ─── */
 const FilterPanel = ({
-  priceRange, setPriceRange, maxPrice,
-  airlines, selectedAirlines, toggleAirline,
+  flights, priceRange, setPriceRange, maxPrice,
+  selectedAirlines, toggleAirline,
   stopsFilter, setStopsFilter,
   departTimeRange, setDepartTimeRange,
+  arrivalTimeRange, setArrivalTimeRange,
+  durationRange, setDurationRange,
+  selectedAlliances, toggleAlliance,
+  refundableOnly, setRefundableOnly,
+  selectedLayoverAirports, toggleLayoverAirport,
+  layoverDurationRange, setLayoverDurationRange,
+  isRoundTrip, originCode, destCode,
   onReset,
-}: {
-  priceRange: number[]; setPriceRange: (v: number[]) => void; maxPrice: number;
-  airlines: string[]; selectedAirlines: string[]; toggleAirline: (a: string) => void;
-  stopsFilter: string; setStopsFilter: (v: string) => void;
-  departTimeRange: number[]; setDepartTimeRange: (v: number[]) => void;
-  onReset: () => void;
-}) => (
-  <div className="space-y-6">
-    <div>
-      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Stops</h4>
-      <div className="flex gap-1.5 flex-wrap">
-        {[{ key: "all", label: "Any" }, { key: "0", label: "Non-stop" }, { key: "1", label: "1 Stop" }, { key: "2+", label: "2+ Stops" }].map((opt) => (
-          <button key={opt.key} onClick={() => setStopsFilter(opt.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              stopsFilter === opt.key ? "bg-accent text-accent-foreground border-accent" : "bg-card text-muted-foreground border-border hover:border-foreground/30"
-            }`}>{opt.label}</button>
-        ))}
-      </div>
-    </div>
-    <div>
-      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Price Range</h4>
-      <Slider min={0} max={maxPrice} step={100} value={priceRange} onValueChange={setPriceRange} className="mb-2" />
-      <div className="flex justify-between text-xs text-muted-foreground"><span>৳{priceRange[0].toLocaleString()}</span><span>৳{priceRange[1].toLocaleString()}</span></div>
-    </div>
-    <div>
-      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Departure Time</h4>
-      <Slider min={0} max={24} step={1} value={departTimeRange} onValueChange={setDepartTimeRange} className="mb-2" />
-      <div className="flex justify-between text-xs text-muted-foreground"><span>{departTimeRange[0]}:00</span><span>{departTimeRange[1]}:00</span></div>
-    </div>
-    {airlines.length > 0 && (
-      <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Airlines</h4>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {airlines.map((a: string) => (
-            <label key={a} className="flex items-center gap-2 cursor-pointer group">
-              <Checkbox checked={selectedAirlines.includes(a)} onCheckedChange={() => toggleAirline(a)} />
-              <span className="text-xs font-medium group-hover:text-foreground text-muted-foreground transition-colors">{a}</span>
-            </label>
-          ))}
+}: any) => {
+  // Compute all stats from real flight data
+  const popularFilterStats = useMemo(() => {
+    const stats: { key: string; label: string; count: number; cheapest: number }[] = [];
+    const cheapestOf = (arr: any[]) => arr.length > 0 ? Math.min(...arr.map((f: any) => f.price || Infinity)) : 0;
+    const nonStop = flights.filter((f: any) => (f.stops ?? 0) === 0);
+    const oneStop = flights.filter((f: any) => (f.stops ?? 0) === 1);
+    const multiStop = flights.filter((f: any) => (f.stops ?? 0) > 1);
+    const earlyMorning = flights.filter((f: any) => { if (!f.departureTime) return false; return new Date(f.departureTime).getHours() < 6; });
+    const lateDep = flights.filter((f: any) => { if (!f.departureTime) return false; return new Date(f.departureTime).getHours() >= 18; });
+    const refundable = flights.filter((f: any) => f.refundable === true);
+    if (nonStop.length > 0) stats.push({ key: 'nonstop', label: 'Non Stop', count: nonStop.length, cheapest: cheapestOf(nonStop) });
+    if (oneStop.length > 0) stats.push({ key: '1stop', label: '1 Stop', count: oneStop.length, cheapest: cheapestOf(oneStop) });
+    if (multiStop.length > 0) stats.push({ key: '1+stop', label: '1+ Stop', count: multiStop.length, cheapest: cheapestOf(multiStop) });
+    if (earlyMorning.length > 0) stats.push({ key: 'early', label: 'Early Morning Departures', count: earlyMorning.length, cheapest: cheapestOf(earlyMorning) });
+    if (lateDep.length > 0) stats.push({ key: 'late', label: 'Late Departures', count: lateDep.length, cheapest: cheapestOf(lateDep) });
+    if (refundable.length > 0) stats.push({ key: 'refundable', label: 'Refundable', count: refundable.length, cheapest: cheapestOf(refundable) });
+    return stats;
+  }, [flights]);
+
+  const allianceStats = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const f of flights) { const a = AIRLINE_ALLIANCES[f.airlineCode]; if (a) map[a] = (map[a] || 0) + 1; }
+    return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }, [flights]);
+
+  const durationBounds = useMemo(() => {
+    const ds = flights.map((f: any) => f.durationMinutes || 0).filter((d: number) => d > 0);
+    return { min: ds.length > 0 ? Math.min(...ds) : 0, max: ds.length > 0 ? Math.max(...ds) : 1440 };
+  }, [flights]);
+
+  const timeSlotStats = useMemo(() => {
+    const slots = [
+      { key: 'before6', label: 'Before 6 AM', minH: 0, maxH: 6 },
+      { key: '6to12', label: '6 AM - 12 PM', minH: 6, maxH: 12 },
+      { key: '12to18', label: '12 PM - 6 PM', minH: 12, maxH: 18 },
+      { key: 'after18', label: 'After 6 PM', minH: 18, maxH: 24 },
+    ];
+    const depart: any[] = [], arrive: any[] = [];
+    for (const slot of slots) {
+      const df = flights.filter((f: any) => { if (!f.departureTime) return false; const h = new Date(f.departureTime).getHours(); return h >= slot.minH && h < slot.maxH; });
+      const af = flights.filter((f: any) => { if (!f.arrivalTime) return false; const h = new Date(f.arrivalTime).getHours(); return h >= slot.minH && h < slot.maxH; });
+      if (df.length > 0) depart.push({ ...slot, count: df.length, cheapest: Math.min(...df.map((f: any) => f.price || Infinity)) });
+      if (af.length > 0) arrive.push({ ...slot, count: af.length, cheapest: Math.min(...af.map((f: any) => f.price || Infinity)) });
+    }
+    return { depart, arrive };
+  }, [flights]);
+
+  const layoverAirportStats = useMemo(() => {
+    const map: Record<string, { code: string; name: string; count: number; cheapest: number }> = {};
+    for (const f of flights) {
+      const codes = (f.stopCodes || []).length > 0 ? f.stopCodes : (f.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+      for (const code of codes) {
+        if (!code) continue;
+        if (!map[code]) map[code] = { code, name: getAirportName(code), count: 0, cheapest: Infinity };
+        map[code].count++;
+        if ((f.price || Infinity) < map[code].cheapest) map[code].cheapest = f.price;
+      }
+    }
+    return Object.values(map).sort((a, b) => b.count - a.count);
+  }, [flights]);
+
+  const layoverDurationBounds = useMemo(() => {
+    const ds: number[] = [];
+    for (const f of flights) {
+      const legs = f.legs || [];
+      for (let i = 0; i < legs.length - 1; i++) {
+        if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+          const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+          if (m > 0) ds.push(m);
+        }
+      }
+    }
+    return { min: ds.length > 0 ? Math.min(...ds) : 0, max: ds.length > 0 ? Math.max(...ds) : 0 };
+  }, [flights]);
+
+  const airlineList = useMemo(() => {
+    const map: Record<string, { name: string; count: number; cheapest: number }> = {};
+    for (const f of flights) {
+      const name = f.airline || ''; if (!name) continue;
+      if (!map[name]) map[name] = { name, count: 0, cheapest: Infinity };
+      map[name].count++;
+      if ((f.price || Infinity) < map[name].cheapest) map[name].cheapest = f.price;
+    }
+    return Object.values(map).sort((a, b) => a.cheapest - b.cheapest);
+  }, [flights]);
+
+  const slotIcons: Record<string, any> = { before6: Moon, '6to12': Sunrise, '12to18': Sun, after18: Sunset };
+  const isPopularActive = (key: string) => {
+    if (key === 'nonstop') return stopsFilter === '0';
+    if (key === '1stop') return stopsFilter === '1';
+    if (key === '1+stop') return stopsFilter === '2+';
+    if (key === 'refundable') return refundableOnly;
+    if (key === 'early') return departTimeRange[0] === 0 && departTimeRange[1] === 6;
+    if (key === 'late') return departTimeRange[0] === 18 && departTimeRange[1] === 24;
+    return false;
+  };
+  const handlePopularToggle = (key: string) => {
+    if (key === 'nonstop') setStopsFilter(stopsFilter === '0' ? 'all' : '0');
+    else if (key === '1stop') setStopsFilter(stopsFilter === '1' ? 'all' : '1');
+    else if (key === '1+stop') setStopsFilter(stopsFilter === '2+' ? 'all' : '2+');
+    else if (key === 'refundable') setRefundableOnly(!refundableOnly);
+    else if (key === 'early') setDepartTimeRange(departTimeRange[0] === 0 && departTimeRange[1] === 6 ? [0, 24] : [0, 6]);
+    else if (key === 'late') setDepartTimeRange(departTimeRange[0] === 18 ? [0, 24] : [18, 24]);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Popular Filter */}
+      {popularFilterStats.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Popular Filter</h4>
+          <div className="space-y-2">
+            {popularFilterStats.map(pf => (
+              <label key={pf.key} className="flex items-center justify-between cursor-pointer group">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Checkbox checked={isPopularActive(pf.key)} onCheckedChange={() => handlePopularToggle(pf.key)} />
+                  <span className="text-xs group-hover:text-foreground text-muted-foreground transition-colors truncate">
+                    {pf.label} ({pf.count})
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-medium shrink-0 ml-2">BDT {pf.cheapest.toLocaleString()}</span>
+              </label>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Alliances */}
+      {allianceStats.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Alliances</h4>
+          <div className="space-y-2">
+            {allianceStats.map(a => (
+              <label key={a.name} className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox checked={selectedAlliances.includes(a.name)} onCheckedChange={() => toggleAlliance(a.name)} />
+                <span className="text-xs group-hover:text-foreground text-muted-foreground transition-colors">{a.name} ({a.count})</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Price Range */}
+      <div>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Price range</h4>
+        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>Minimum Price</span><span>Maximum Price</span></div>
+        <div className="flex justify-between text-xs font-semibold mb-2"><span>{priceRange[0].toLocaleString()}</span><span>{priceRange[1].toLocaleString()}</span></div>
+        <Slider min={0} max={maxPrice} step={100} value={priceRange} onValueChange={setPriceRange} />
       </div>
-    )}
-  </div>
-);
+
+      {/* By Duration */}
+      {durationBounds.max > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">By Duration</h4>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>Minimum Time</span><span>Maximum Time</span></div>
+          <div className="flex justify-between text-xs font-semibold mb-2"><span>{fmtDurationMins(durationRange[0])}</span><span>{fmtDurationMins(durationRange[1])}</span></div>
+          <Slider min={durationBounds.min} max={durationBounds.max} step={5} value={durationRange} onValueChange={setDurationRange} />
+        </div>
+      )}
+
+      {/* Onward Journey label for round trips */}
+      {isRoundTrip && <Separator className="my-1" />}
+      {isRoundTrip && <h4 className="text-sm font-bold text-foreground">Onward Journey</h4>}
+
+      {/* Departure From [Origin] */}
+      {timeSlotStats.depart.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+            Departure {originCode ? `From ${originCode}` : ''}
+          </h4>
+          <div className="grid grid-cols-2 gap-1.5">
+            {timeSlotStats.depart.map((slot: any) => {
+              const Icon = slotIcons[slot.key] || Clock;
+              const isActive = departTimeRange[0] === slot.minH && departTimeRange[1] === slot.maxH;
+              return (
+                <button key={slot.key} onClick={() => setDepartTimeRange(isActive ? [0, 24] : [slot.minH, slot.maxH])}
+                  className={`flex flex-col items-start gap-0.5 p-2 rounded-lg border text-left transition-all ${isActive ? 'border-accent bg-accent/5' : 'border-border hover:border-foreground/30'}`}>
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] font-medium leading-tight">{slot.label}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">BDT {slot.cheapest.toLocaleString()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Arrival At [Destination] */}
+      {timeSlotStats.arrive.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+            Arrival {destCode ? `At ${destCode}` : ''}
+          </h4>
+          <div className="grid grid-cols-2 gap-1.5">
+            {timeSlotStats.arrive.map((slot: any) => {
+              const Icon = slotIcons[slot.key] || Clock;
+              const isActive = arrivalTimeRange[0] === slot.minH && arrivalTimeRange[1] === slot.maxH;
+              return (
+                <button key={slot.key} onClick={() => setArrivalTimeRange(isActive ? [0, 24] : [slot.minH, slot.maxH])}
+                  className={`flex flex-col items-start gap-0.5 p-2 rounded-lg border text-left transition-all ${isActive ? 'border-accent bg-accent/5' : 'border-border hover:border-foreground/30'}`}>
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] font-medium leading-tight">{slot.label}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">BDT {slot.cheapest.toLocaleString()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Return Journey label */}
+      {isRoundTrip && <Separator className="my-1" />}
+      {isRoundTrip && <h4 className="text-sm font-bold text-foreground">Return Journey</h4>}
+
+      {/* Layover Airports */}
+      {layoverAirportStats.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Layover Airports</h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {layoverAirportStats.map(la => (
+              <label key={la.code} className="flex items-center justify-between cursor-pointer group">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Checkbox checked={selectedLayoverAirports.includes(la.code)} onCheckedChange={() => toggleLayoverAirport(la.code)} />
+                  <span className="text-[10px] group-hover:text-foreground text-muted-foreground transition-colors leading-tight truncate">
+                    {la.name} ({la.count})
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-medium shrink-0 ml-1">BDT {la.cheapest.toLocaleString()}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Layover Duration */}
+      {layoverDurationBounds.max > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Layover duration</h4>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>Minimum Time</span><span>Maximum Time</span></div>
+          <div className="flex justify-between text-xs font-semibold mb-2"><span>{fmtDurationMins(layoverDurationRange[0])}</span><span>{fmtDurationMins(layoverDurationRange[1])}</span></div>
+          <Slider min={layoverDurationBounds.min} max={layoverDurationBounds.max} step={5} value={layoverDurationRange} onValueChange={setLayoverDurationRange} />
+        </div>
+      )}
+
+      {/* Airlines */}
+      {airlineList.length > 0 && (
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Airlines</h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {airlineList.map((a: any) => (
+              <label key={a.name} className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox checked={selectedAirlines.includes(a.name)} onCheckedChange={() => toggleAirline(a.name)} />
+                <span className="text-xs group-hover:text-foreground text-muted-foreground transition-colors">{a.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ─── Leg Mini — compact leg display for grouped cards ─── */
 const LegMini = ({ flight, label, labelColor }: { flight: any; label: string; labelColor: string }) => {
@@ -590,7 +840,7 @@ const FlightCard = ({
               <div className="text-center shrink-0">
                 <p className="text-lg sm:text-2xl font-black tracking-tight">
                   {arriveTime}
-                  {nextDay && <sup className="text-[8px] sm:text-[9px] text-destructive font-bold ml-0.5">+1</sup>}
+                  {nextDay && <sup className="text-[8px] sm:text-[9px] text-destructive font-bold ml-0.5">+1 days</sup>}
                 </p>
                 <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium mt-0.5">{arriveDateStr}</p>
               </div>
@@ -981,6 +1231,13 @@ const FlightResults = () => {
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
   const [stopsFilter, setStopsFilter] = useState("all");
   const [departTimeRange, setDepartTimeRange] = useState([0, 24]);
+  const [arrivalTimeRange, setArrivalTimeRange] = useState([0, 24]);
+  const [durationRange, setDurationRange] = useState([0, 5000]);
+  const [selectedAlliances, setSelectedAlliances] = useState<string[]>([]);
+  const [refundableOnly, setRefundableOnly] = useState(false);
+  const [selectedLayoverAirports, setSelectedLayoverAirports] = useState<string[]>([]);
+  const [layoverDurationRange, setLayoverDurationRange] = useState([0, 5000]);
+  const airlineBarRef = useRef<HTMLDivElement>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [expandedFlight, setExpandedFlight] = useState<string | null>(null);
   const [selectedOutbound, setSelectedOutbound] = useState<any>(null);
@@ -1124,9 +1381,42 @@ const FlightResults = () => {
   const maxPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.max(...allFlightsForFilters.map((f: any) => f.price || 0)) : 200000, [allFlightsForFilters]);
   const minPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.min(...allFlightsForFilters.map((f: any) => f.price || 0)) : 0, [allFlightsForFilters]);
 
-  useEffect(() => { if (allFlightsForFilters.length > 0) setPriceRange([Math.max(0, minPrice - 100), maxPrice]); }, [minPrice, maxPrice, allFlightsForFilters.length]);
+  // Duration bounds for slider init
+  const maxDuration = useMemo(() => {
+    const ds = allFlightsForFilters.map((f: any) => f.durationMinutes || 0).filter((d: number) => d > 0);
+    return ds.length > 0 ? Math.max(...ds) : 1440;
+  }, [allFlightsForFilters]);
+  const minDuration = useMemo(() => {
+    const ds = allFlightsForFilters.map((f: any) => f.durationMinutes || 0).filter((d: number) => d > 0);
+    return ds.length > 0 ? Math.min(...ds) : 0;
+  }, [allFlightsForFilters]);
+
+  // Layover duration bounds
+  const maxLayoverDuration = useMemo(() => {
+    const ds: number[] = [];
+    for (const f of allFlightsForFilters) {
+      const legs = f.legs || [];
+      for (let i = 0; i < legs.length - 1; i++) {
+        if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+          const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+          if (m > 0) ds.push(m);
+        }
+      }
+    }
+    return ds.length > 0 ? Math.max(...ds) : 0;
+  }, [allFlightsForFilters]);
+
+  useEffect(() => {
+    if (allFlightsForFilters.length > 0) {
+      setPriceRange([Math.max(0, minPrice - 100), maxPrice]);
+      setDurationRange([minDuration, maxDuration]);
+      if (maxLayoverDuration > 0) setLayoverDurationRange([0, maxLayoverDuration]);
+    }
+  }, [minPrice, maxPrice, allFlightsForFilters.length, minDuration, maxDuration, maxLayoverDuration]);
 
   const toggleAirline = useCallback((a: string) => setSelectedAirlines(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
+  const toggleAlliance = useCallback((a: string) => setSelectedAlliances(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
+  const toggleLayoverAirport = useCallback((a: string) => setSelectedLayoverAirports(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
 
   // Airline stats for the top bar — from real API data
   const airlineStats = useMemo(() => {
@@ -1166,7 +1456,6 @@ const FlightResults = () => {
 
   const applyFilters = useCallback((list: any[]) => {
     return list.filter((f: any) => {
-      // Airline filter from top bar
       if (airlineFilter && f.airlineCode !== airlineFilter) return false;
       if (selectedAirlines.length > 0 && !selectedAirlines.includes(f.airline)) return false;
       if (f.price < priceRange[0] || f.price > priceRange[1]) return false;
@@ -1176,13 +1465,54 @@ const FlightResults = () => {
         if (stopsFilter === "1" && stops !== 1) return false;
         if (stopsFilter === "2+" && stops < 2) return false;
       }
-      if (f.departureTime) {
-        const hour = new Date(f.departureTime).getHours();
-        if (hour < departTimeRange[0] || hour > departTimeRange[1]) return false;
+      // Departure time
+      if (departTimeRange[0] !== 0 || departTimeRange[1] !== 24) {
+        if (f.departureTime) {
+          const hour = new Date(f.departureTime).getHours();
+          if (hour < departTimeRange[0] || hour >= departTimeRange[1]) return false;
+        }
+      }
+      // Arrival time
+      if (arrivalTimeRange[0] !== 0 || arrivalTimeRange[1] !== 24) {
+        if (f.arrivalTime) {
+          const hour = new Date(f.arrivalTime).getHours();
+          if (hour < arrivalTimeRange[0] || hour >= arrivalTimeRange[1]) return false;
+        }
+      }
+      // Refundable only
+      if (refundableOnly && !f.refundable) return false;
+      // Alliance filter
+      if (selectedAlliances.length > 0) {
+        const alliance = AIRLINE_ALLIANCES[f.airlineCode || ''];
+        if (!alliance || !selectedAlliances.includes(alliance)) return false;
+      }
+      // Duration filter
+      if (durationRange[0] > 0 || durationRange[1] < 5000) {
+        const dur = f.durationMinutes || 0;
+        if (dur > 0 && (dur < durationRange[0] || dur > durationRange[1])) return false;
+      }
+      // Layover airports
+      if (selectedLayoverAirports.length > 0) {
+        const codes = (f.stopCodes || []).length > 0 ? f.stopCodes : (f.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        if (!codes.some((c: string) => selectedLayoverAirports.includes(c))) return false;
+      }
+      // Layover duration
+      if (layoverDurationRange[0] > 0 || layoverDurationRange[1] < 5000) {
+        const legs = f.legs || [];
+        if (legs.length > 1) {
+          let valid = false;
+          for (let i = 0; i < legs.length - 1; i++) {
+            if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+              const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+              if (m >= layoverDurationRange[0] && m <= layoverDurationRange[1]) { valid = true; break; }
+            }
+          }
+          if (!valid) return false;
+        }
       }
       return true;
     });
-  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange]);
+  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, selectedLayoverAirports, layoverDurationRange]);
 
   const filteredOutbound = useMemo(() => sortFlights(applyFilters(outboundFlights), sortBy), [outboundFlights, sortBy, applyFilters]);
   const filteredReturn = useMemo(() => sortFlights(applyFilters(returnFlights), sortBy), [returnFlights, sortBy, applyFilters]);
@@ -1192,36 +1522,43 @@ const FlightResults = () => {
   const filteredPairs = useMemo(() => {
     if (!isRoundTrip || !hasDirections) return [];
     const filtered = roundTripPairs.filter(p => {
-      // Apply airline filter from top bar
       if (airlineFilter && p.outbound.airlineCode !== airlineFilter) return false;
-      // Apply airline filter to outbound
       if (selectedAirlines.length > 0 && !selectedAirlines.includes(p.outbound.airline)) return false;
-      // Apply price filter to total
       if (p.totalPrice < priceRange[0] || p.totalPrice > priceRange[1]) return false;
-      // Stops filter on outbound
       if (stopsFilter !== "all") {
         const stops = p.outbound.stops ?? 0;
         if (stopsFilter === "0" && stops !== 0) return false;
         if (stopsFilter === "1" && stops !== 1) return false;
         if (stopsFilter === "2+" && stops < 2) return false;
       }
-      // Depart time on outbound
-      if (p.outbound.departureTime) {
-        const hour = new Date(p.outbound.departureTime).getHours();
-        if (hour < departTimeRange[0] || hour > departTimeRange[1]) return false;
+      if (departTimeRange[0] !== 0 || departTimeRange[1] !== 24) {
+        if (p.outbound.departureTime) {
+          const hour = new Date(p.outbound.departureTime).getHours();
+          if (hour < departTimeRange[0] || hour >= departTimeRange[1]) return false;
+        }
+      }
+      if (arrivalTimeRange[0] !== 0 || arrivalTimeRange[1] !== 24) {
+        if (p.outbound.arrivalTime) {
+          const h = new Date(p.outbound.arrivalTime).getHours();
+          if (h < arrivalTimeRange[0] || h >= arrivalTimeRange[1]) return false;
+        }
+      }
+      if (refundableOnly && !p.outbound.refundable) return false;
+      if (selectedAlliances.length > 0) {
+        const alliance = AIRLINE_ALLIANCES[p.outbound.airlineCode || ''];
+        if (!alliance || !selectedAlliances.includes(alliance)) return false;
+      }
+      if (durationRange[0] > 0 || durationRange[1] < 5000) {
+        const dur = p.outbound.durationMinutes || 0;
+        if (dur > 0 && (dur < durationRange[0] || dur > durationRange[1])) return false;
       }
       return true;
     });
-    // Sort by total price or outbound criteria
-    if (sortBy === "cheapest" || sortBy === "best") {
-      filtered.sort((a, b) => a.totalPrice - b.totalPrice);
-    } else if (sortBy === "fastest") {
-      filtered.sort((a, b) => ((a.outbound.durationMinutes || 0) + (a.returnFlight.durationMinutes || 0)) - ((b.outbound.durationMinutes || 0) + (b.returnFlight.durationMinutes || 0)));
-    } else if (sortBy === "departure") {
-      filtered.sort((a, b) => new Date(a.outbound.departureTime).getTime() - new Date(b.outbound.departureTime).getTime());
-    }
+    if (sortBy === "cheapest" || sortBy === "best") filtered.sort((a, b) => a.totalPrice - b.totalPrice);
+    else if (sortBy === "fastest") filtered.sort((a, b) => ((a.outbound.durationMinutes || 0) + (a.returnFlight.durationMinutes || 0)) - ((b.outbound.durationMinutes || 0) + (b.returnFlight.durationMinutes || 0)));
+    else if (sortBy === "departure") filtered.sort((a, b) => new Date(a.outbound.departureTime).getTime() - new Date(b.outbound.departureTime).getTime());
     return filtered;
-  }, [roundTripPairs, isRoundTrip, hasDirections, airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, sortBy]);
+  }, [roundTripPairs, isRoundTrip, hasDirections, airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, sortBy]);
 
   // Cabin class mismatch detection — searched for Business/First but API returned only Economy
   const searchedCabinNorm = (cabinClass || "").toLowerCase();
@@ -1234,7 +1571,12 @@ const FlightResults = () => {
     return !relevantFlights.some((f: any) => (f.cabinClass || "").toLowerCase() === searchedCabinNorm || (f.cabinClass || "") === searchedLabel);
   }, [searchedCabinNorm, flights, allMultiCityFlights, isMultiCity]);
 
-  const resetFilters = useCallback(() => { setSelectedAirlines([]); setPriceRange([0, maxPrice]); setStopsFilter("all"); setDepartTimeRange([0, 24]); setAirlineFilter(null); }, [maxPrice]);
+  const resetFilters = useCallback(() => {
+    setSelectedAirlines([]); setPriceRange([0, maxPrice]); setStopsFilter("all");
+    setDepartTimeRange([0, 24]); setArrivalTimeRange([0, 24]); setDurationRange([minDuration, maxDuration]);
+    setSelectedAlliances([]); setRefundableOnly(false); setSelectedLayoverAirports([]);
+    setLayoverDurationRange([0, maxLayoverDuration || 5000]); setAirlineFilter(null);
+  }, [maxPrice, minDuration, maxDuration, maxLayoverDuration]);
 
   const sources = apiData.sources || {};
 
@@ -1343,31 +1685,51 @@ const FlightResults = () => {
         ) : (
           <div className="flex gap-6">
             {/* Sidebar filters */}
-            <aside className="hidden lg:block w-64 shrink-0">
-              <Card className="sticky top-28 shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60">
+            <aside className="hidden lg:block w-72 shrink-0">
+              <Card className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filters</h3>
                     <Button variant="ghost" size="sm" className="text-xs text-accent h-7" onClick={resetFilters}>Reset</Button>
                   </div>
-                  <FilterPanel priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
-                    airlines={airlines} selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
+                  <FilterPanel
+                    flights={allFlightsForFilters}
+                    priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
+                    selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
                     stopsFilter={stopsFilter} setStopsFilter={setStopsFilter}
-                    departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange} onReset={resetFilters} />
+                    departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange}
+                    arrivalTimeRange={arrivalTimeRange} setArrivalTimeRange={setArrivalTimeRange}
+                    durationRange={durationRange} setDurationRange={setDurationRange}
+                    selectedAlliances={selectedAlliances} toggleAlliance={toggleAlliance}
+                    refundableOnly={refundableOnly} setRefundableOnly={setRefundableOnly}
+                    selectedLayoverAirports={selectedLayoverAirports} toggleLayoverAirport={toggleLayoverAirport}
+                    layoverDurationRange={layoverDurationRange} setLayoverDurationRange={setLayoverDurationRange}
+                    isRoundTrip={isRoundTrip} originCode={fromCode} destCode={toCode}
+                    onReset={resetFilters}
+                  />
                 </CardContent>
               </Card>
             </aside>
 
             {/* Main content */}
             <div className="flex-1 space-y-3">
-              {/* Airline filter bar — real API data, 3D card */}
+              {/* Airline filter bar — real API data, 3D card with working scroll */}
               {airlineStats.length > 0 && !isMultiCity && (
                 <Card className="shadow-[0_4px_20px_-4px_hsl(var(--foreground)/0.08),0_1px_3px_hsl(var(--foreground)/0.06)] border-border/60 overflow-hidden">
                   <div className="flex items-center">
-                    <button className="shrink-0 px-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-r border-border">
+                    <button
+                      className="shrink-0 px-1 sm:px-2 text-accent font-semibold text-xs hover:bg-muted/50 transition-colors border-r border-border hidden sm:block"
+                      onClick={resetFilters}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      className="shrink-0 px-1.5 sm:px-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-r border-border"
+                      onClick={() => airlineBarRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
+                    >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <div className="flex-1 overflow-x-auto scrollbar-none">
+                    <div ref={airlineBarRef} className="flex-1 overflow-x-auto scrollbar-none">
                       <div className="flex">
                         {airlineStats.map((a) => {
                           const isActive = airlineFilter === a.code;
@@ -1375,21 +1737,21 @@ const FlightResults = () => {
                             <button
                               key={a.code}
                               onClick={() => setAirlineFilter(isActive ? null : a.code)}
-                              className={`flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap border-r border-border last:border-r-0 transition-colors ${
+                              className={`flex items-center gap-2 px-3 py-2.5 whitespace-nowrap border-r border-border last:border-r-0 transition-colors shrink-0 ${
                                 isActive ? "bg-accent/10" : "hover:bg-muted/50"
                               }`}
                             >
                               <img
                                 src={getAirlineLogo(a.code) || ''}
                                 alt={a.name}
-                                className="w-5 h-5 rounded-full object-contain"
+                                className="w-5 h-5 rounded-full object-contain shrink-0"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
-                              <div className="text-left">
-                                <p className={`text-[11px] sm:text-xs font-bold ${isActive ? "text-accent" : "text-foreground"}`}>
+                              <div className="text-left min-w-0">
+                                <p className={`text-xs font-bold ${isActive ? "text-accent" : "text-foreground"}`}>
                                   {a.code}
                                 </p>
-                                <p className={`text-[10px] sm:text-[11px] ${isActive ? "text-accent" : "text-muted-foreground"}`}>
+                                <p className={`text-[10px] whitespace-nowrap ${isActive ? "text-accent" : "text-muted-foreground"}`}>
                                   BDT {a.cheapest.toLocaleString()} ({a.count})
                                 </p>
                               </div>
@@ -1398,7 +1760,10 @@ const FlightResults = () => {
                         })}
                       </div>
                     </div>
-                    <button className="shrink-0 px-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-l border-border">
+                    <button
+                      className="shrink-0 px-1.5 sm:px-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-l border-border"
+                      onClick={() => airlineBarRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
+                    >
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1635,10 +2000,21 @@ const FlightResults = () => {
                 <h3 className="font-bold flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filters</h3>
                 <button onClick={() => setShowFilters(false)}><X className="w-5 h-5" /></button>
               </div>
-              <FilterPanel priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
-                airlines={airlines} selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
+              <FilterPanel
+                flights={allFlightsForFilters}
+                priceRange={priceRange} setPriceRange={setPriceRange} maxPrice={maxPrice}
+                selectedAirlines={selectedAirlines} toggleAirline={toggleAirline}
                 stopsFilter={stopsFilter} setStopsFilter={setStopsFilter}
-                departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange} onReset={resetFilters} />
+                departTimeRange={departTimeRange} setDepartTimeRange={setDepartTimeRange}
+                arrivalTimeRange={arrivalTimeRange} setArrivalTimeRange={setArrivalTimeRange}
+                durationRange={durationRange} setDurationRange={setDurationRange}
+                selectedAlliances={selectedAlliances} toggleAlliance={toggleAlliance}
+                refundableOnly={refundableOnly} setRefundableOnly={setRefundableOnly}
+                selectedLayoverAirports={selectedLayoverAirports} toggleLayoverAirport={toggleLayoverAirport}
+                layoverDurationRange={layoverDurationRange} setLayoverDurationRange={setLayoverDurationRange}
+                isRoundTrip={isRoundTrip} originCode={fromCode} destCode={toCode}
+                onReset={resetFilters}
+              />
               <Button className="w-full mt-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => setShowFilters(false)}>Apply Filters</Button>
             </motion.div>
           </>
