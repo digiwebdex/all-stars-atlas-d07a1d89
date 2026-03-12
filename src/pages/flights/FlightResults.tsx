@@ -2158,6 +2158,35 @@ const FlightResults = () => {
         const dur = p.outbound.durationMinutes || 0;
         if (dur > 0 && (dur < durationRange[0] || dur > durationRange[1])) return false;
       }
+      // Layover airports filter
+      if (selectedLayoverAirports.length > 0) {
+        const obCodes = (p.outbound.stopCodes || []).length > 0 ? p.outbound.stopCodes : (p.outbound.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        const retCodes = (p.returnFlight.stopCodes || []).length > 0 ? p.returnFlight.stopCodes : (p.returnFlight.legs || []).slice(0, -1).map((l: any) => l.destination).filter(Boolean);
+        const allCodes = [...obCodes, ...retCodes];
+        if (!allCodes.some((c: string) => selectedLayoverAirports.includes(c))) return false;
+      }
+      // Layover duration filter
+      if (layoverDurationRange[0] > 0 || layoverDurationRange[1] < 5000) {
+        let valid = false;
+        for (const flight of [p.outbound, p.returnFlight]) {
+          const legs = flight.legs || [];
+          for (let i = 0; i < legs.length - 1; i++) {
+            if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+              const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+              if (m >= layoverDurationRange[0] && m <= layoverDurationRange[1]) { valid = true; break; }
+            }
+          }
+          if (valid) break;
+        }
+        // Only filter if there are layovers
+        const hasLayovers = (p.outbound.stops || 0) > 0 || (p.returnFlight.stops || 0) > 0;
+        if (hasLayovers && !valid) return false;
+      }
+      // Baggage filter
+      if (selectedBaggage.length > 0) {
+        const bag = String(p.outbound.baggage || '').trim();
+        if (!bag || !selectedBaggage.includes(bag)) return false;
+      }
       return true;
     });
     if (sortBy === "cheapest" || sortBy === "best") filtered.sort((a, b) => a.totalPrice - b.totalPrice);
