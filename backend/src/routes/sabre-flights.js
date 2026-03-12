@@ -243,8 +243,20 @@ async function searchFlights(params) {
             ATPCO: 'Enable',
             LCC: 'Enable',
           },
+          DiversityParameters: {
+            Weightings: {
+              PriceWeight: 8,
+              TravelTimeWeight: 2,
+            },
+          },
         },
         CabinPref: [{ Cabin: sabreCabin, PreferLevel: 'Preferred' }],
+      },
+      TPA_Extensions: {
+        IntelliSellTransaction: {
+          RequestType: { Name: '200ITINS' },
+          CompressResponse: { Value: true },
+        },
       },
       TravelerInfoSummary: {
         AirTravelerAvail: [{
