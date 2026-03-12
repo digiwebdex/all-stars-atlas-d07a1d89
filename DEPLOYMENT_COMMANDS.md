@@ -1,7 +1,7 @@
 # Seven Trip — Working Deployment Commands
 
 > **Auto-updated** with every change. Copy-paste ready commands for your VPS.
-> Last updated: 2026-03-12 (v3.6.0 — Deferred document verification & MRZ auto-validation)
+> Last updated: 2026-03-12 (v3.7.0 — Reward points system, enhanced flight cards with baggage/seats/class info)
 
 ---
 
