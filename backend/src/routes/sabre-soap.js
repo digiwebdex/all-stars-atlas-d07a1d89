@@ -198,8 +198,7 @@ async function getSeatMap(params) {
     if (xml.includes('faultstring') || xml.includes('ErrorRS')) {
       const errMatch = xml.match(/faultstring>([^<]+)/) || xml.match(/Message[^>]*>([^<]+)/);
       console.log(`[Sabre SOAP] SeatMap error: ${errMatch ? errMatch[1] : 'Unknown error'}`);
-      console.log(`[Sabre SOAP] SeatMap error XML: ${xml.substring(0, 3000)}`);
-      return null;
+      return { _error: true, message: errMatch ? errMatch[1] : 'Unknown', rawXml: xml.substring(0, 3000) };
     }
 
     // Parse seat map XML
@@ -252,7 +251,7 @@ async function getAncillaryOffers(params) {
     </Security>
   </SOAP-ENV:Header>
   <SOAP-ENV:Body>
-    <GetAncillaryOffersRQ xmlns="http://stl.sabre.com/Merchandising/v4" version="3.0.0">
+    <GetAncillaryOffersRQ xmlns="http://services.sabre.com/merch/ancillary/offer/v03" version="3.0.0">
       <RequestType>Stateless</RequestType>
       <SummaryOnly>false</SummaryOnly>
       <FlightSegment origin="${params.origin}" destination="${params.destination}" departureDate="${params.departureDate}"${params.departureTime ? ` departureTime="${params.departureTime}"` : ''}>
@@ -284,8 +283,7 @@ async function getAncillaryOffers(params) {
     if (xml.includes('faultstring') || xml.includes('ErrorRS')) {
       const errMatch = xml.match(/faultstring>([^<]+)/) || xml.match(/Message[^>]*>([^<]+)/);
       console.log(`[Sabre SOAP] Ancillary error: ${errMatch ? errMatch[1] : 'Unknown error'}`);
-      console.log(`[Sabre SOAP] Ancillary error XML: ${xml.substring(0, 3000)}`);
-      return null;
+      return { _error: true, message: errMatch ? errMatch[1] : 'Unknown', rawXml: xml.substring(0, 3000) };
     }
 
     return parseAncillaryXml(xml);
