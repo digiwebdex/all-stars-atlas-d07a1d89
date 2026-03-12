@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [3.7.5] — 2026-03-12 — Multi-City Combined Search & UI Fixes
+
+### Fixed
+- **Multi-city Flight Details**: "Flight Details" button on multi-city cards was non-functional — added `MultiCityExpandedDetails` component with 4 tabs (Flight Details, Fare Summary, Baggage, Cancellation)
+
+### Changed
+- **Dark mode softened**: Replaced pure black backgrounds (`6% lightness`) with softer dark grays (`14% lightness`) across background, card, popover, muted, border, input, and sidebar tokens
+- **Multi-city search architecture**: Changed from per-segment parallel searches to single Sabre BFM request with all `OriginDestinationInformation` entries — returns combined itineraries priced as one unit (matching BDFare behavior)
+- **Multi-city flight cards**: Now display all segments in a single card with combined pricing instead of per-segment selection mode
+- **Backend normalizer**: Multi-city results emit `isMultiCity: true` with `segments[]` array containing per-leg details
+
+---
+
 ## [3.7.3] — 2026-03-12 — White Search Bar Redesign
 
 ### Changed
