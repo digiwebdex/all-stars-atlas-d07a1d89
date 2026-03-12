@@ -1183,6 +1183,8 @@ const FlightResults = () => {
   const filteredPairs = useMemo(() => {
     if (!isRoundTrip || !hasDirections) return [];
     const filtered = roundTripPairs.filter(p => {
+      // Apply airline filter from top bar
+      if (airlineFilter && p.outbound.airlineCode !== airlineFilter) return false;
       // Apply airline filter to outbound
       if (selectedAirlines.length > 0 && !selectedAirlines.includes(p.outbound.airline)) return false;
       // Apply price filter to total
