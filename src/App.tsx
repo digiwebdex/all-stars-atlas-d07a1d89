@@ -64,6 +64,7 @@ const PayBillPage = lazy(() => import("@/pages/paybill/PayBillPage"));
 // Dashboard
 const DashboardLayout = lazy(() => import("@/pages/dashboard/DashboardLayout"));
 const DashboardHome = lazy(() => import("@/pages/dashboard/DashboardHome"));
+const DashboardBookingDetail = lazy(() => import("@/pages/dashboard/DashboardBookingDetail"));
 const DashboardBookings = lazy(() => import("@/pages/dashboard/DashboardBookings"));
 const DashboardTransactions = lazy(() => import("@/pages/dashboard/DashboardTransactions"));
 const DashboardPayments = lazy(() => import("@/pages/dashboard/DashboardPayments"));
@@ -178,6 +179,7 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<DashboardHome />} />
                 <Route path="bookings" element={<DashboardBookings />} />
+                <Route path="bookings/:id" element={<DashboardBookingDetail />} />
                 <Route path="transactions" element={<DashboardTransactions />} />
                 <Route path="payments" element={<DashboardPayments />} />
                 <Route path="travellers" element={<DashboardTravellers />} />
