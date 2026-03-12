@@ -1776,43 +1776,95 @@ const FlightResults = () => {
   const outboundFlights = useMemo(() => flights.filter((f: any) => f.direction !== "return"), [flights]);
   const returnFlights = useMemo(() => flights.filter((f: any) => f.direction === "return"), [flights]);
 
-  // Round-trip: group outbound+return into pairs by airline
+  // Round-trip: pair outbound+return by original itinerary index, then cross-pair remaining
   const roundTripPairs = useMemo(() => {
     if (!isRoundTrip || !hasDirections) return [];
     const pairs: { outbound: any; returnFlight: any; totalPrice: number }[] = [];
+    const usedOutboundIds = new Set<string>();
     const usedReturnIds = new Set<string>();
 
-    // For each outbound, find the cheapest same-airline return
-    const sortedOutbound = [...outboundFlights].sort((a, b) => (a.price || 0) - (b.price || 0));
-    
-    for (const ob of sortedOutbound) {
-      // Find cheapest return from same airline
-      let bestReturn = returnFlights
-        .filter((r: any) => r.airlineCode === ob.airlineCode)
-        .sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
-      
-      // If no same-airline return, find cheapest overall return
-      if (!bestReturn) {
-        bestReturn = [...returnFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
+    // Strategy 1: Pair by original Sabre itinerary index (same idx in ID)
+    // IDs like "sabre-{idx}-outbound" / "sabre-{idx}-return" or "sabre-g-{date}-{legIdx}-{idx}"
+    const getItinKey = (f: any) => {
+      const id = f.id || '';
+      // sabre-g-DATE-LEGIDX-ITINIDX → extract last number
+      const gMatch = id.match(/^sabre-g-.*-\d+-(\d+)$/);
+      if (gMatch) return `sabre-g-${gMatch[1]}`;
+      // sabre-IDX-direction
+      const cMatch = id.match(/^sabre-(\d+)-(outbound|return)$/);
+      if (cMatch) return `sabre-${cMatch[1]}`;
+      return null;
+    };
+
+    const outboundByKey: Record<string, any[]> = {};
+    const returnByKey: Record<string, any[]> = {};
+
+    for (const f of outboundFlights) {
+      const key = getItinKey(f);
+      if (key) {
+        if (!outboundByKey[key]) outboundByKey[key] = [];
+        outboundByKey[key].push(f);
       }
-      
-      if (bestReturn) {
-        pairs.push({
-          outbound: ob,
-          returnFlight: bestReturn,
-          totalPrice: (ob.price || 0) + (bestReturn.price || 0),
-        });
+    }
+    for (const f of returnFlights) {
+      const key = getItinKey(f);
+      if (key) {
+        if (!returnByKey[key]) returnByKey[key] = [];
+        returnByKey[key].push(f);
       }
     }
 
-    // Also add unique return flights paired with cheapest outbound (for airlines that only have return)
+    // Match itinerary pairs
+    for (const key of Object.keys(outboundByKey)) {
+      if (returnByKey[key]) {
+        for (const ob of outboundByKey[key]) {
+          for (const ret of returnByKey[key]) {
+            pairs.push({
+              outbound: ob,
+              returnFlight: ret,
+              totalPrice: (ob.price || 0) + (ret.price || 0),
+            });
+            usedOutboundIds.add(ob.id);
+            usedReturnIds.add(ret.id);
+          }
+        }
+      }
+    }
+
+    // Strategy 2: For remaining unpaired outbound flights, pair with ALL same-airline returns
+    const unpairedOutbound = outboundFlights.filter((f: any) => !usedOutboundIds.has(f.id));
+    const unpairedReturn = returnFlights.filter((f: any) => !usedReturnIds.has(f.id));
+
+    for (const ob of unpairedOutbound) {
+      const sameAirlineReturns = returnFlights.filter((r: any) => r.airlineCode === ob.airlineCode);
+      if (sameAirlineReturns.length > 0) {
+        for (const ret of sameAirlineReturns) {
+          pairs.push({
+            outbound: ob,
+            returnFlight: ret,
+            totalPrice: (ob.price || 0) + (ret.price || 0),
+          });
+        }
+      } else {
+        // Cross-airline: pair with cheapest return
+        const cheapestReturn = [...returnFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
+        if (cheapestReturn) {
+          pairs.push({
+            outbound: ob,
+            returnFlight: cheapestReturn,
+            totalPrice: (ob.price || 0) + (cheapestReturn.price || 0),
+          });
+        }
+      }
+    }
+
+    // Strategy 3: For return-only airlines (no matching outbound), pair with cheapest outbound
     const outboundAirlines = new Set(outboundFlights.map((f: any) => f.airlineCode));
-    const returnOnlyAirlines = returnFlights.filter((r: any) => !outboundAirlines.has(r.airlineCode));
-    
-    if (returnOnlyAirlines.length > 0) {
+    const returnOnlyFlights = unpairedReturn.filter((r: any) => !outboundAirlines.has(r.airlineCode));
+    if (returnOnlyFlights.length > 0) {
       const cheapestOutbound = [...outboundFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
       if (cheapestOutbound) {
-        for (const ret of returnOnlyAirlines) {
+        for (const ret of returnOnlyFlights) {
           pairs.push({
             outbound: cheapestOutbound,
             returnFlight: ret,
@@ -1822,7 +1874,14 @@ const FlightResults = () => {
       }
     }
 
-    return pairs;
+    // Deduplicate by outbound.id + returnFlight.id
+    const seen = new Set<string>();
+    return pairs.filter(p => {
+      const key = `${p.outbound.id}__${p.returnFlight.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [isRoundTrip, hasDirections, outboundFlights, returnFlights]);
 
   // Combine all multi-city flights for filter computation
