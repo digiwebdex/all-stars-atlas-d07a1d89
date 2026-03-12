@@ -1119,7 +1119,9 @@ function parseTD3(mrzLines, r, verified) {
   const line2 = mrzLines.length > 1 ? mrzLines[1] : '';
 
   if (line1.startsWith('P')) {
-    const issuing = line1.substring(2, 5).replace(/</g, '');
+    let issuing = line1.substring(2, 5).replace(/</g, '');
+    // Apply OCR error correction to country code
+    issuing = correctMRZCountryCode(issuing);
     r.country = issuing;
     const nameSection = line1.substring(5);
     const parts = nameSection.split(/<<+/).filter(Boolean);
