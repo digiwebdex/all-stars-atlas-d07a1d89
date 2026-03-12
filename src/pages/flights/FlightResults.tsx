@@ -685,37 +685,37 @@ const LegMini = ({ flight, label, labelColor }: { flight: any; label: string; la
 
   return (
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1.5">
+      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 truncate">
         <span className={`font-semibold ${labelColor}`}>{label}:</span>{" "}
         {flight.airline}, {formatShortDate(flight.departureTime)}
       </p>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Origin */}
         <div className="text-center shrink-0">
-          <p className="text-xs sm:text-[10px] font-medium text-muted-foreground">{fromCode}</p>
-          <p className="text-base sm:text-xl font-black tracking-tight">{departTime}</p>
+          <p className="text-[10px] sm:text-[10px] font-medium text-muted-foreground">{fromCode}</p>
+          <p className="text-sm sm:text-base lg:text-lg font-black tracking-tight">{departTime}</p>
         </div>
 
         {/* Duration bar */}
-        <div className="flex-1 flex flex-col items-center gap-0.5 min-w-[50px]">
+        <div className="flex-1 flex flex-col items-center gap-0.5 min-w-[40px]">
           <div className="w-full flex items-center">
             <div className="w-1 h-1 rounded-full bg-muted-foreground" />
             <div className="flex-1 h-[1px] bg-border relative">
-              <Plane className="w-3.5 h-3.5 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              <Plane className="w-3 h-3 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               <StopDotsWithTooltip flight={flight} stops={stops} />
             </div>
             <div className="w-1 h-1 rounded-full bg-muted-foreground" />
           </div>
-          <p className="text-[10px] text-muted-foreground">{duration}</p>
-          <p className={`text-[10px] font-semibold ${stops === 0 ? "text-foreground" : "text-warning"}`}>{stopsLabel}</p>
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground">{duration}</p>
+          <p className={`text-[9px] sm:text-[10px] font-semibold ${stops === 0 ? "text-foreground" : "text-warning"}`}>{stopsLabel}</p>
         </div>
 
         {/* Destination */}
         <div className="text-center shrink-0">
-          <p className="text-xs sm:text-[10px] font-medium text-muted-foreground">{toCode}</p>
-          <p className="text-base sm:text-xl font-black tracking-tight">
+          <p className="text-[10px] sm:text-[10px] font-medium text-muted-foreground">{toCode}</p>
+          <p className="text-sm sm:text-base lg:text-lg font-black tracking-tight">
             {arriveTime}
-            {nextDay && <sup className="text-[7px] text-destructive font-bold ml-0.5">+1 days</sup>}
+            {nextDay && <sup className="text-[7px] text-destructive font-bold ml-0.5">+1</sup>}
           </p>
         </div>
       </div>
