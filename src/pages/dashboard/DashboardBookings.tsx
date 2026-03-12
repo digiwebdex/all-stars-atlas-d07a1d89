@@ -245,7 +245,7 @@ const DashboardBookings = () => {
                                 baggage: f?.baggage || "20Kg", status: "Confirmed", meal: f?.meal || "Meals",
                               });
                               generateTicketPDF({
-                                id: booking.id, pnr: booking.pnr !== "—" ? booking.pnr : undefined, bookingRef: booking.pnr !== "—" ? booking.pnr : booking.id,
+                                id: booking.id, pnr: booking.pnr !== "—" ? booking.pnr : undefined, gdsPnr: booking.pnr !== "—" ? booking.pnr : undefined, bookingRef: booking.id, source: booking.source,
                                 airline: booking.airline || "Seven Trip", flightNo: booking.flightNumber || "",
                                 from: booking.origin || "", to: booking.destination || "",
                                 date: booking.departureTime || booking.date, time: booking.departureTime || "",
