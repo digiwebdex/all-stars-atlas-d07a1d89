@@ -81,6 +81,53 @@ function isNextDay(depart?: string, arrive?: string): boolean {
   return new Date(arrive).getDate() !== new Date(depart).getDate();
 }
 
+/* ─── Airport coordinates for distance calculation ─── */
+const AIRPORT_COORDS: Record<string, [number, number]> = {
+  DAC:[23.8433,90.3978],CXB:[21.4522,91.9639],CGP:[22.2496,91.8133],ZYL:[24.9632,91.8668],
+  JSR:[23.1838,89.1608],RJH:[24.4372,88.6165],SPD:[25.7591,88.9089],BZL:[22.801,90.3012],
+  DEL:[28.5562,77.1],BOM:[19.0887,72.8679],BLR:[13.1986,77.7066],MAA:[12.9941,80.1709],
+  CCU:[22.6547,88.4467],HYD:[17.2403,78.4294],COK:[10.152,76.4019],DXB:[25.2528,55.3644],
+  SIN:[1.3502,103.9944],KUL:[2.7456,101.7072],BKK:[13.6811,100.7472],HKG:[22.3089,113.9145],
+  DOH:[25.2609,51.6138],AUH:[24.4331,54.6511],RUH:[24.9576,46.6988],JED:[21.6796,39.1565],
+  IST:[41.2753,28.7519],LHR:[51.4706,-0.4619],CDG:[49.0097,2.5479],FRA:[50.0333,8.5706],
+  AMS:[52.3086,4.7639],JFK:[40.6413,-73.7781],LAX:[33.9416,-118.4085],SFO:[37.6213,-122.379],
+  NRT:[35.7647,140.3864],ICN:[37.4602,126.4407],PEK:[40.0799,116.6031],SYD:[-33.9461,151.1772],
+  CMB:[7.1801,79.8841],KTM:[27.6966,85.3591],MCT:[23.5933,58.2844],BAH:[26.2708,50.6336],
+  CAN:[23.3924,113.299],PVG:[31.1443,121.8083],MNL:[14.5086,121.0194],SGN:[10.8188,106.652],
+  HAN:[21.2212,105.807],RGN:[16.9073,96.1332],CGK:[-6.1256,106.6558],AMD:[23.0728,72.6347],
+};
+
+function calcDistanceKm(from: string, to: string): number | null {
+  const c1 = AIRPORT_COORDS[from], c2 = AIRPORT_COORDS[to];
+  if (!c1 || !c2) return null;
+  const R = 6371;
+  const dLat = (c2[0] - c1[0]) * Math.PI / 180;
+  const dLon = (c2[1] - c1[1]) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(c1[0] * Math.PI / 180) * Math.cos(c2[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+/* ─── Session Timer Component ─── */
+const SessionTimer = ({ startTime }: { startTime: number }) => {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+  const remaining = Math.max(0, 20 * 60 - elapsed); // 20 min session
+  const mins = Math.floor(remaining / 60);
+  const secs = remaining % 60;
+  const isLow = remaining < 120;
+  return (
+    <div className={`flex items-center gap-1.5 text-xs font-bold tabular-nums ${isLow ? "text-destructive" : "text-muted-foreground"}`}>
+      <Timer className="w-3.5 h-3.5" />
+      <span>{mins} min</span>
+      <span className="animate-pulse">:</span>
+      <span>{String(secs).padStart(2, '0')} sec</span>
+    </div>
+  );
+};
+
 /* ─── Filter panel — BDFare-grade advanced filters ─── */
 const FilterPanel = ({
   flights, priceRange, setPriceRange, maxPrice,
