@@ -783,12 +783,25 @@ const FlightCard = ({
                     );
                   })()}
 
-                  {/* Baggage Tab — real API data */}
+                  {/* Baggage Tab — real API data, table layout */}
                   {activeDetailTab === "baggage" && (
-                    <div className="max-w-md space-y-3">
-                      <div className="flex items-center gap-3 p-3 bg-accent/5 rounded-xl border border-accent/10"><Luggage className="w-5 h-5 text-accent" /><div><p className="text-sm font-semibold">Checked Baggage</p><p className="text-xs text-muted-foreground">{baggage ? `${baggage} per passenger` : "Not provided by airline booking system"}</p></div></div>
-                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><Luggage className="w-4 h-4 text-muted-foreground" /><div><p className="text-sm font-semibold">Hand Baggage</p><p className="text-xs text-muted-foreground">{handBaggage ? `${handBaggage} per passenger` : "Not provided by airline booking system"}</p></div></div>
-                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl"><span className="text-sm font-medium">Cabin Class</span><span className="text-sm text-muted-foreground ml-auto">{cabinDisplay}</span></div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+                        <thead>
+                          <tr className="bg-muted/50">
+                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground text-xs">Sector</th>
+                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground text-xs">Checkin</th>
+                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground text-xs">Cabin</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-border/50">
+                            <td className="px-4 py-3 font-semibold text-base flex items-center gap-2">{fromCode} <Plane className="w-3.5 h-3.5 text-muted-foreground" /> {toCode}</td>
+                            <td className="px-4 py-3 text-muted-foreground">{baggage ? `ADT : ${baggage}` : "Not provided"}</td>
+                            <td className="px-4 py-3 text-muted-foreground">{handBaggage ? `ADT : ${handBaggage}` : "Not provided"}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   )}
 
