@@ -34,10 +34,14 @@ function getAirlineLogo(code?: string): string | null {
   return `https://images.kiwi.com/airlines/64/${code}.png`;
 }
 
-/* ─── Airport names — from airports.ts registry (no hardcoded map) ─── */
+/* ─── Airport names & cities — from airports.ts registry (no hardcoded map) ─── */
 const AIRPORT_NAME_MAP = new Map(AIRPORTS.map(a => [a.code, a.name]));
+const AIRPORT_CITY_MAP = new Map(AIRPORTS.map(a => [a.code, a.city]));
 function getAirportName(code: string): string {
   return AIRPORT_NAME_MAP.get(code) || `${code} Airport`;
+}
+function getAirportCity(code: string): string {
+  return AIRPORT_CITY_MAP.get(code) || code;
 }
 
 /* ─── Airline Alliance Mapping — real IATA memberships ─── */
@@ -906,6 +910,31 @@ const RoundTripFlightCard = ({
                                       <p className="text-[11px] text-muted-foreground mt-1">{getAirportName(segment.destination || leg.destination)} ({segment.destination || leg.destination})</p>
                                     </div>
                                   </div>
+                                  {/* Layover between segments */}
+                                  {i < (legs.length > 0 ? legs.length : 1) - 1 && legs.length > 1 && (() => {
+                                    const nextSeg = legs[i + 1];
+                                    const transitCode = segment.destination || "";
+                                    const transitCity = transitCode ? getAirportCity(transitCode) : "";
+                                    let layoverStr = "";
+                                    if (nextSeg?.departureTime && segment.arrivalTime) {
+                                      const layoverMin = Math.round((new Date(nextSeg.departureTime).getTime() - new Date(segment.arrivalTime).getTime()) / 60000);
+                                      const h = Math.floor(layoverMin / 60);
+                                      const m = layoverMin % 60;
+                                      layoverStr = `${h > 0 ? `${h}h ` : ""}${m > 0 ? `${m}m` : ""}`;
+                                    }
+                                    return (
+                                      <div className="flex items-center gap-2 py-3 px-4 my-2">
+                                        <div className="flex-1 h-px bg-warning/30" />
+                                        <div className="flex items-center gap-2 text-xs bg-warning/10 px-4 py-2 rounded-full border border-warning/20">
+                                          <span className="text-destructive font-semibold">Change of planes</span>
+                                          <span className="text-foreground font-medium">
+                                            {layoverStr && <>{layoverStr} </>}Layover{transitCity ? ` in ${transitCity}` : ""}
+                                          </span>
+                                        </div>
+                                        <div className="flex-1 h-px bg-warning/30" />
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               ))}
                             </div>
@@ -1364,20 +1393,27 @@ const FlightCard = ({
                               </div>
                             </div>
 
-                            {/* Transit between legs */}
+                            {/* Transit between legs — BDFare style: "Change of planes Xh Ym Layover in City" */}
                             {i < (legs.length > 0 ? legs.length : 1) - 1 && legs.length > 1 && (
-                              <div className="flex items-center gap-2 py-2 px-4 my-1">
+                              <div className="flex items-center gap-2 py-3 px-4 my-2">
                                 <div className="flex-1 h-px bg-warning/30" />
-                                <div className="flex items-center gap-1.5 text-xs text-warning font-semibold bg-warning/10 px-3 py-1 rounded-full">
-                                  <Clock className="w-3 h-3" />
+                                <div className="flex items-center gap-2 text-xs bg-warning/10 px-4 py-2 rounded-full border border-warning/20">
+                                  <span className="text-destructive font-semibold">Change of planes</span>
                                   {(() => {
+                                    const transitCode = leg.destination || stopCodes[i] || "";
+                                    const transitCity = transitCode ? getAirportCity(transitCode) : "";
+                                    let layoverStr = "";
                                     if (legs[i + 1]?.departureTime && leg.arrivalTime) {
                                       const layoverMin = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(leg.arrivalTime).getTime()) / 60000);
                                       const h = Math.floor(layoverMin / 60);
                                       const m = layoverMin % 60;
-                                      return `Transit Time: ${h > 0 ? `${h}H ` : ""}${m}M`;
+                                      layoverStr = `${h > 0 ? `${h}h ` : ""}${m > 0 ? `${m}m` : ""}`;
                                     }
-                                    return "Transit";
+                                    return (
+                                      <span className="text-foreground font-medium">
+                                        {layoverStr && <>{layoverStr} </>}Layover{transitCity ? ` in ${transitCity}` : ""}
+                                      </span>
+                                    );
                                   })()}
                                 </div>
                                 <div className="flex-1 h-px bg-warning/30" />
@@ -1772,43 +1808,95 @@ const FlightResults = () => {
   const outboundFlights = useMemo(() => flights.filter((f: any) => f.direction !== "return"), [flights]);
   const returnFlights = useMemo(() => flights.filter((f: any) => f.direction === "return"), [flights]);
 
-  // Round-trip: group outbound+return into pairs by airline
+  // Round-trip: pair outbound+return by original itinerary index, then cross-pair remaining
   const roundTripPairs = useMemo(() => {
     if (!isRoundTrip || !hasDirections) return [];
     const pairs: { outbound: any; returnFlight: any; totalPrice: number }[] = [];
+    const usedOutboundIds = new Set<string>();
     const usedReturnIds = new Set<string>();
 
-    // For each outbound, find the cheapest same-airline return
-    const sortedOutbound = [...outboundFlights].sort((a, b) => (a.price || 0) - (b.price || 0));
-    
-    for (const ob of sortedOutbound) {
-      // Find cheapest return from same airline
-      let bestReturn = returnFlights
-        .filter((r: any) => r.airlineCode === ob.airlineCode)
-        .sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
-      
-      // If no same-airline return, find cheapest overall return
-      if (!bestReturn) {
-        bestReturn = [...returnFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
+    // Strategy 1: Pair by original Sabre itinerary index (same idx in ID)
+    // IDs like "sabre-{idx}-outbound" / "sabre-{idx}-return" or "sabre-g-{date}-{legIdx}-{idx}"
+    const getItinKey = (f: any) => {
+      const id = f.id || '';
+      // sabre-g-DATE-LEGIDX-ITINIDX → extract last number
+      const gMatch = id.match(/^sabre-g-.*-\d+-(\d+)$/);
+      if (gMatch) return `sabre-g-${gMatch[1]}`;
+      // sabre-IDX-direction
+      const cMatch = id.match(/^sabre-(\d+)-(outbound|return)$/);
+      if (cMatch) return `sabre-${cMatch[1]}`;
+      return null;
+    };
+
+    const outboundByKey: Record<string, any[]> = {};
+    const returnByKey: Record<string, any[]> = {};
+
+    for (const f of outboundFlights) {
+      const key = getItinKey(f);
+      if (key) {
+        if (!outboundByKey[key]) outboundByKey[key] = [];
+        outboundByKey[key].push(f);
       }
-      
-      if (bestReturn) {
-        pairs.push({
-          outbound: ob,
-          returnFlight: bestReturn,
-          totalPrice: (ob.price || 0) + (bestReturn.price || 0),
-        });
+    }
+    for (const f of returnFlights) {
+      const key = getItinKey(f);
+      if (key) {
+        if (!returnByKey[key]) returnByKey[key] = [];
+        returnByKey[key].push(f);
       }
     }
 
-    // Also add unique return flights paired with cheapest outbound (for airlines that only have return)
+    // Match itinerary pairs
+    for (const key of Object.keys(outboundByKey)) {
+      if (returnByKey[key]) {
+        for (const ob of outboundByKey[key]) {
+          for (const ret of returnByKey[key]) {
+            pairs.push({
+              outbound: ob,
+              returnFlight: ret,
+              totalPrice: (ob.price || 0) + (ret.price || 0),
+            });
+            usedOutboundIds.add(ob.id);
+            usedReturnIds.add(ret.id);
+          }
+        }
+      }
+    }
+
+    // Strategy 2: For remaining unpaired outbound flights, pair with ALL same-airline returns
+    const unpairedOutbound = outboundFlights.filter((f: any) => !usedOutboundIds.has(f.id));
+    const unpairedReturn = returnFlights.filter((f: any) => !usedReturnIds.has(f.id));
+
+    for (const ob of unpairedOutbound) {
+      const sameAirlineReturns = returnFlights.filter((r: any) => r.airlineCode === ob.airlineCode);
+      if (sameAirlineReturns.length > 0) {
+        for (const ret of sameAirlineReturns) {
+          pairs.push({
+            outbound: ob,
+            returnFlight: ret,
+            totalPrice: (ob.price || 0) + (ret.price || 0),
+          });
+        }
+      } else {
+        // Cross-airline: pair with cheapest return
+        const cheapestReturn = [...returnFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
+        if (cheapestReturn) {
+          pairs.push({
+            outbound: ob,
+            returnFlight: cheapestReturn,
+            totalPrice: (ob.price || 0) + (cheapestReturn.price || 0),
+          });
+        }
+      }
+    }
+
+    // Strategy 3: For return-only airlines (no matching outbound), pair with cheapest outbound
     const outboundAirlines = new Set(outboundFlights.map((f: any) => f.airlineCode));
-    const returnOnlyAirlines = returnFlights.filter((r: any) => !outboundAirlines.has(r.airlineCode));
-    
-    if (returnOnlyAirlines.length > 0) {
+    const returnOnlyFlights = unpairedReturn.filter((r: any) => !outboundAirlines.has(r.airlineCode));
+    if (returnOnlyFlights.length > 0) {
       const cheapestOutbound = [...outboundFlights].sort((a: any, b: any) => (a.price || 0) - (b.price || 0))[0];
       if (cheapestOutbound) {
-        for (const ret of returnOnlyAirlines) {
+        for (const ret of returnOnlyFlights) {
           pairs.push({
             outbound: cheapestOutbound,
             returnFlight: ret,
@@ -1818,7 +1906,14 @@ const FlightResults = () => {
       }
     }
 
-    return pairs;
+    // Deduplicate by outbound.id + returnFlight.id
+    const seen = new Set<string>();
+    return pairs.filter(p => {
+      const key = `${p.outbound.id}__${p.returnFlight.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [isRoundTrip, hasDirections, outboundFlights, returnFlights]);
 
   // Combine all multi-city flights for filter computation
@@ -1872,9 +1967,22 @@ const FlightResults = () => {
   const toggleLayoverAirport = useCallback((a: string) => setSelectedLayoverAirports(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
   const toggleBaggage = useCallback((b: string) => setSelectedBaggage(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]), []);
 
-  // Airline stats for the top bar — from real API data
+  // Airline stats for the top bar — count from round-trip pairs for correct display
   const airlineStats = useMemo(() => {
-    const relevantFlights = isRoundTrip && hasDirections ? outboundFlights : (isMultiCity ? allMultiCityFlights : flights);
+    if (isRoundTrip && hasDirections) {
+      // Count from actual pairs so airline bar matches displayed results
+      const map: Record<string, { code: string; name: string; cheapest: number; count: number }> = {};
+      for (const p of roundTripPairs) {
+        const code = p.outbound.airlineCode || '';
+        const name = p.outbound.airline || code;
+        if (!code) continue;
+        if (!map[code]) map[code] = { code, name, cheapest: p.totalPrice, count: 0 };
+        map[code].count++;
+        if (p.totalPrice < map[code].cheapest) map[code].cheapest = p.totalPrice;
+      }
+      return Object.values(map).sort((a, b) => a.cheapest - b.cheapest);
+    }
+    const relevantFlights = isMultiCity ? allMultiCityFlights : flights;
     const map: Record<string, { code: string; name: string; cheapest: number; count: number }> = {};
     for (const f of relevantFlights) {
       const code = f.airlineCode || '';
@@ -1885,7 +1993,7 @@ const FlightResults = () => {
       if ((f.price || Infinity) < map[code].cheapest) map[code].cheapest = f.price;
     }
     return Object.values(map).sort((a, b) => a.cheapest - b.cheapest);
-  }, [flights, outboundFlights, isRoundTrip, hasDirections, isMultiCity, allMultiCityFlights]);
+  }, [flights, roundTripPairs, isRoundTrip, hasDirections, isMultiCity, allMultiCityFlights]);
 
   // Quick sort summaries — Cheapest, Fastest, Best from real data
   const quickSortSummary = useMemo(() => {
@@ -2270,7 +2378,7 @@ const FlightResults = () => {
               {isMultiCity ? (
                 <>Showing <strong>{totalMultiCityFlights}</strong> flights</>
               ) : isRoundTrip && hasDirections ? (
-                <>Showing <strong>{filteredPairs.length} flights</strong> &amp; <strong>{airlines.length} Airlines</strong> <span className="text-muted-foreground font-normal text-xs">(Fares include. AIT VAT)</span></>
+                <>Showing <strong>{filteredPairs.length} flights</strong> &amp; <strong>{airlineStats.length} Airlines</strong> <span className="text-muted-foreground font-normal text-xs">(Fares include. AIT VAT)</span></>
               ) : (
                 <>Showing <strong>{flights.length} flights</strong>
                   {sources.tti > 0 && <span className="text-muted-foreground font-normal text-xs ml-1">({sources.tti} Air Astra)</span>}
