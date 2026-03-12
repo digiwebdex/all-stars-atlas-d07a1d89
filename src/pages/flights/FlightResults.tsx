@@ -2378,7 +2378,7 @@ const FlightResults = () => {
               {isMultiCity ? (
                 <>Showing <strong>{totalMultiCityFlights}</strong> flights</>
               ) : isRoundTrip && hasDirections ? (
-                <>Showing <strong>{filteredPairs.length} flights</strong> &amp; <strong>{airlines.length} Airlines</strong> <span className="text-muted-foreground font-normal text-xs">(Fares include. AIT VAT)</span></>
+                <>Showing <strong>{filteredPairs.length} flights</strong> &amp; <strong>{airlineStats.length} Airlines</strong> <span className="text-muted-foreground font-normal text-xs">(Fares include. AIT VAT)</span></>
               ) : (
                 <>Showing <strong>{flights.length} flights</strong>
                   {sources.tti > 0 && <span className="text-muted-foreground font-normal text-xs ml-1">({sources.tti} Air Astra)</span>}
