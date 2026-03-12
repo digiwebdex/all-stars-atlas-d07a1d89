@@ -1223,7 +1223,7 @@ const FlightResults = () => {
     return !relevantFlights.some((f: any) => (f.cabinClass || "").toLowerCase() === searchedCabinNorm || (f.cabinClass || "") === searchedLabel);
   }, [searchedCabinNorm, flights, allMultiCityFlights, isMultiCity]);
 
-  const resetFilters = useCallback(() => { setSelectedAirlines([]); setPriceRange([0, maxPrice]); setStopsFilter("all"); setDepartTimeRange([0, 24]); }, [maxPrice]);
+  const resetFilters = useCallback(() => { setSelectedAirlines([]); setPriceRange([0, maxPrice]); setStopsFilter("all"); setDepartTimeRange([0, 24]); setAirlineFilter(null); }, [maxPrice]);
 
   const sources = apiData.sources || {};
 
