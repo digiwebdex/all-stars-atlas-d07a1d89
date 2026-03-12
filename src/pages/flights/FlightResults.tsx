@@ -1381,9 +1381,42 @@ const FlightResults = () => {
   const maxPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.max(...allFlightsForFilters.map((f: any) => f.price || 0)) : 200000, [allFlightsForFilters]);
   const minPrice = useMemo(() => allFlightsForFilters.length > 0 ? Math.min(...allFlightsForFilters.map((f: any) => f.price || 0)) : 0, [allFlightsForFilters]);
 
-  useEffect(() => { if (allFlightsForFilters.length > 0) setPriceRange([Math.max(0, minPrice - 100), maxPrice]); }, [minPrice, maxPrice, allFlightsForFilters.length]);
+  // Duration bounds for slider init
+  const maxDuration = useMemo(() => {
+    const ds = allFlightsForFilters.map((f: any) => f.durationMinutes || 0).filter((d: number) => d > 0);
+    return ds.length > 0 ? Math.max(...ds) : 1440;
+  }, [allFlightsForFilters]);
+  const minDuration = useMemo(() => {
+    const ds = allFlightsForFilters.map((f: any) => f.durationMinutes || 0).filter((d: number) => d > 0);
+    return ds.length > 0 ? Math.min(...ds) : 0;
+  }, [allFlightsForFilters]);
+
+  // Layover duration bounds
+  const maxLayoverDuration = useMemo(() => {
+    const ds: number[] = [];
+    for (const f of allFlightsForFilters) {
+      const legs = f.legs || [];
+      for (let i = 0; i < legs.length - 1; i++) {
+        if (legs[i].arrivalTime && legs[i + 1].departureTime) {
+          const m = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(legs[i].arrivalTime).getTime()) / 60000);
+          if (m > 0) ds.push(m);
+        }
+      }
+    }
+    return ds.length > 0 ? Math.max(...ds) : 0;
+  }, [allFlightsForFilters]);
+
+  useEffect(() => {
+    if (allFlightsForFilters.length > 0) {
+      setPriceRange([Math.max(0, minPrice - 100), maxPrice]);
+      setDurationRange([minDuration, maxDuration]);
+      if (maxLayoverDuration > 0) setLayoverDurationRange([0, maxLayoverDuration]);
+    }
+  }, [minPrice, maxPrice, allFlightsForFilters.length, minDuration, maxDuration, maxLayoverDuration]);
 
   const toggleAirline = useCallback((a: string) => setSelectedAirlines(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
+  const toggleAlliance = useCallback((a: string) => setSelectedAlliances(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
+  const toggleLayoverAirport = useCallback((a: string) => setSelectedLayoverAirports(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]), []);
 
   // Airline stats for the top bar — from real API data
   const airlineStats = useMemo(() => {
