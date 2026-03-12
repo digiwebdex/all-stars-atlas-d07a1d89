@@ -1032,24 +1032,36 @@ export async function generateTicketPDF(ticket: TicketData) {
     y += 6;
   });
 
-  doc.setFontSize(8);
+  // Right side: Booking ID + Airlines PNR (dual PNR display)
+  const airlinesPnr = ticket.pnr || ticket.gdsPnr || "";
+  const systemRef = ticket.bookingRef || ticket.id || "";
+
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100);
-  doc.text("RESERVATION CODE", w - 60, 28);
+  doc.text("BOOKING REFERENCE", w - 60, 28);
   doc.setTextColor(0);
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text(bookingRef, w - 60, 35);
+  doc.text(systemRef, w - 60, 34);
 
-  if (ticket.airlineReservationCode) {
+  if (airlinesPnr && airlinesPnr !== systemRef) {
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text("AIRLINE RESERVATION CODE", w - 60, 41);
-    doc.setTextColor(0);
-    doc.setFontSize(10);
+    doc.text("AIRLINES PNR", w - 60, 40);
+    doc.setTextColor(220, 80, 0);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(ticket.airlineReservationCode, w - 60, 47);
+    doc.text(airlinesPnr, w - 60, 47);
+  }
+
+  const gdsSource = ticket.source || "";
+  if (gdsSource && gdsSource !== "db") {
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(140);
+    doc.text(`GDS: ${gdsSource.toUpperCase()}`, w - 60, airlinesPnr && airlinesPnr !== systemRef ? 52 : 40);
   }
 
   y += 4;
