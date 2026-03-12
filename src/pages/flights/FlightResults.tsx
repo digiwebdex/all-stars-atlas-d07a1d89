@@ -1368,20 +1368,27 @@ const FlightCard = ({
                               </div>
                             </div>
 
-                            {/* Transit between legs */}
+                            {/* Transit between legs — BDFare style: "Change of planes Xh Ym Layover in City" */}
                             {i < (legs.length > 0 ? legs.length : 1) - 1 && legs.length > 1 && (
-                              <div className="flex items-center gap-2 py-2 px-4 my-1">
+                              <div className="flex items-center gap-2 py-3 px-4 my-2">
                                 <div className="flex-1 h-px bg-warning/30" />
-                                <div className="flex items-center gap-1.5 text-xs text-warning font-semibold bg-warning/10 px-3 py-1 rounded-full">
-                                  <Clock className="w-3 h-3" />
+                                <div className="flex items-center gap-2 text-xs bg-warning/10 px-4 py-2 rounded-full border border-warning/20">
+                                  <span className="text-destructive font-semibold">Change of planes</span>
                                   {(() => {
+                                    const transitCode = leg.destination || stopCodes[i] || "";
+                                    const transitCity = transitCode ? getAirportCity(transitCode) : "";
+                                    let layoverStr = "";
                                     if (legs[i + 1]?.departureTime && leg.arrivalTime) {
                                       const layoverMin = Math.round((new Date(legs[i + 1].departureTime).getTime() - new Date(leg.arrivalTime).getTime()) / 60000);
                                       const h = Math.floor(layoverMin / 60);
                                       const m = layoverMin % 60;
-                                      return `Transit Time: ${h > 0 ? `${h}H ` : ""}${m}M`;
+                                      layoverStr = `${h > 0 ? `${h}h ` : ""}${m > 0 ? `${m}m` : ""}`;
                                     }
-                                    return "Transit";
+                                    return (
+                                      <span className="text-foreground font-medium">
+                                        {layoverStr && <>{layoverStr} </>}Layover{transitCity ? ` in ${transitCity}` : ""}
+                                      </span>
+                                    );
                                   })()}
                                 </div>
                                 <div className="flex-1 h-px bg-warning/30" />
