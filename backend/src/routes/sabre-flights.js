@@ -167,6 +167,7 @@ async function sabreRequest(config, endpoint, body, method = 'POST') {
 }
 
 // ── Flight Search (Bargain Finder Max) ──
+// Supports: one-way, round-trip, AND multi-city (via params.segments array)
 async function searchFlights(params) {
   const config = await getSabreConfig();
   if (!config) return [];
@@ -175,9 +176,13 @@ async function searchFlights(params) {
     origin, destination, departDate, returnDate,
     adults = 1, children = 0, infants = 0,
     cabinClass,
+    segments, // multi-city: [{ from, to, date }, ...]
   } = params;
 
-  if (!origin || !destination || !departDate) return [];
+  // Multi-city: build OD from segments array
+  const isMultiCity = Array.isArray(segments) && segments.length >= 2;
+
+  if (!isMultiCity && (!origin || !destination || !departDate)) return [];
 
   // Map cabin class to Sabre codes
   const cabinMap = {
@@ -193,20 +198,30 @@ async function searchFlights(params) {
   if (infants > 0) passengers.push({ Code: 'INF', Quantity: infants });
 
   // Build origin-destination info
-  const originDest = [{
-    RPH: '1',
-    DepartureDateTime: `${departDate}T00:00:00`,
-    OriginLocation: { LocationCode: origin },
-    DestinationLocation: { LocationCode: destination },
-  }];
-
-  if (returnDate) {
-    originDest.push({
-      RPH: '2',
-      DepartureDateTime: `${returnDate}T00:00:00`,
-      OriginLocation: { LocationCode: destination },
-      DestinationLocation: { LocationCode: origin },
-    });
+  let originDest;
+  if (isMultiCity) {
+    originDest = segments.map((seg, i) => ({
+      RPH: String(i + 1),
+      DepartureDateTime: `${seg.date}T00:00:00`,
+      OriginLocation: { LocationCode: seg.from },
+      DestinationLocation: { LocationCode: seg.to },
+    }));
+    console.log(`[Sabre] Multi-city search: ${segments.map(s => `${s.from}→${s.to}`).join(', ')}`);
+  } else {
+    originDest = [{
+      RPH: '1',
+      DepartureDateTime: `${departDate}T00:00:00`,
+      OriginLocation: { LocationCode: origin },
+      DestinationLocation: { LocationCode: destination },
+    }];
+    if (returnDate) {
+      originDest.push({
+        RPH: '2',
+        DepartureDateTime: `${returnDate}T00:00:00`,
+        OriginLocation: { LocationCode: destination },
+        DestinationLocation: { LocationCode: origin },
+      });
+    }
   }
 
   // Bargain Finder Max request body
@@ -245,9 +260,11 @@ async function searchFlights(params) {
   };
 
   try {
-    console.log(`[Sabre] Searching ${origin} → ${destination} on ${departDate}...`);
+    const logRoute = isMultiCity
+      ? segments.map(s => `${s.from}→${s.to}`).join(', ')
+      : `${origin} → ${destination}`;
+    console.log(`[Sabre] Searching ${logRoute}...`);
     const raw = await sabreRequest(config, '/v5/offers/shop', requestBody);
-    // Debug: log raw BFM response structure
     const topKeys = raw ? Object.keys(raw) : [];
     console.log(`[Sabre] BFM response keys: ${JSON.stringify(topKeys)}`);
     const rs = raw?.OTA_AirLowFareSearchRS || raw?.groupedItineraryResponse || raw;
@@ -256,10 +273,9 @@ async function searchFlights(params) {
       || 0;
     console.log(`[Sabre] BFM itinerary count: ${itinCount}, hasStatistics: ${!!rs?.statistics}`);
     if (itinCount === 0) {
-      // Log first 2000 chars of response for debugging
       console.log(`[Sabre] BFM raw (truncated): ${JSON.stringify(raw).slice(0, 2000)}`);
     }
-    const results = normalizeSabreResponse(raw, params);
+    const results = normalizeSabreResponse(raw, { ...params, isMultiCity, segmentCount: isMultiCity ? segments.length : (returnDate ? 2 : 1) });
     console.log(`[Sabre] Normalized ${results.length} flights`);
     return results;
   } catch (err) {
@@ -624,139 +640,272 @@ function normalizeGroupedResponse(response, params) {
         });
 
         const itinLegs = itin.legs || [];
-        for (let legIdx = 0; legIdx < itinLegs.length; legIdx++) {
-          const leg = itinLegs[legIdx];
-          const legRef = leg.ref;
-          const legDesc = legDescs.find(ld => ld.id === legRef) || {};
-          const schedules = legDesc.schedules || [];
+        const isMultiCityItin = (params.isMultiCity && itinLegs.length >= 2);
+        
+        if (isMultiCityItin) {
+          // ── MULTI-CITY: Emit one combined flight object with all segment legs ──
+          const allLegs = [];
+          const segmentDetails = [];
+          
+          for (let legIdx = 0; legIdx < itinLegs.length; legIdx++) {
+            const leg = itinLegs[legIdx];
+            const legRef = leg.ref;
+            const legDesc = legDescs.find(ld => ld.id === legRef) || {};
+            const schedules = legDesc.schedules || [];
+            const legDepartDate = groupDesc.legDescriptions?.[legIdx]?.departureDate || '';
 
-          const legDepartDate = groupDesc.legDescriptions?.[legIdx]?.departureDate || params.departDate || '';
+            const segLegs = schedules.map((sched) => {
+              const schedRef = sched.ref;
+              const schedDesc = scheduleDescs.find(sd => sd.id === schedRef) || {};
+              const dep = schedDesc.departure || sched.departure || {};
+              const arr = schedDesc.arrival || sched.arrival || {};
+              const carrier = schedDesc.carrier || {};
 
-          const legs = schedules.map((sched) => {
-            const schedRef = sched.ref;
-            const schedDesc = scheduleDescs.find(sd => sd.id === schedRef) || {};
-            const dep = schedDesc.departure || sched.departure || {};
-            const arr = schedDesc.arrival || sched.arrival || {};
-            const carrier = schedDesc.carrier || {};
+              let depDateTime = dep.dateTime || null;
+              let arrDateTime = arr.dateTime || null;
+              if (!depDateTime && dep.time && legDepartDate) {
+                const depAdj = sched.departureDateAdjustment || 0;
+                depDateTime = `${adjustDate(legDepartDate, depAdj)}T${dep.time}`;
+              }
+              if (!arrDateTime && arr.time && legDepartDate) {
+                const arrAdj = sched.departureDateAdjustment || 0;
+                const arrDateAdj = (arr.time < dep.time) ? arrAdj + 1 : arrAdj;
+                arrDateTime = `${adjustDate(legDepartDate, arrDateAdj)}T${arr.time}`;
+              }
 
-            let depDateTime = dep.dateTime || null;
-            let arrDateTime = arr.dateTime || null;
-            if (!depDateTime && dep.time && legDepartDate) {
-              const depAdj = sched.departureDateAdjustment || 0;
-              const depDate = adjustDate(legDepartDate, depAdj);
-              depDateTime = `${depDate}T${dep.time}`;
-            }
-            if (!arrDateTime && arr.time && legDepartDate) {
-              const arrAdj = sched.departureDateAdjustment || 0;
-              const arrDateAdj = (schedDesc.elapsedTime && dep.time && arr.time) ? 
-                (arr.time < dep.time ? arrAdj + 1 : arrAdj) : arrAdj;
-              const arrDate = adjustDate(legDepartDate, arrDateAdj);
-              arrDateTime = `${arrDate}T${arr.time}`;
-            }
+              return {
+                origin: dep.airport || '',
+                destination: arr.airport || '',
+                departureTime: depDateTime,
+                arrivalTime: arrDateTime,
+                durationMinutes: schedDesc.elapsedTime || 0,
+                duration: formatDuration(schedDesc.elapsedTime || 0),
+                flightNumber: `${carrier.marketing || carrier.operating || ''}${carrier.marketingFlightNumber || ''}`,
+                airlineCode: carrier.marketing || carrier.operating || '',
+                operatingAirline: carrier.operating || carrier.marketing || '',
+                aircraft: carrier.equipment?.code || '',
+                originTerminal: dep.terminal || '',
+                destinationTerminal: arr.terminal || '',
+                stops: [],
+              };
+            });
 
-            return {
-              origin: dep.airport || '',
-              destination: arr.airport || '',
-              departureTime: depDateTime,
-              arrivalTime: arrDateTime,
-              durationMinutes: schedDesc.elapsedTime || 0,
-              duration: formatDuration(schedDesc.elapsedTime || 0),
-              flightNumber: `${carrier.marketing || carrier.operating || ''}${carrier.marketingFlightNumber || ''}`,
-              airlineCode: carrier.marketing || carrier.operating || '',
-              operatingAirline: carrier.operating || carrier.marketing || '',
-              aircraft: carrier.equipment?.code || '',
-              originTerminal: dep.terminal || '',
-              destinationTerminal: arr.terminal || '',
-              stops: [],
-            };
-          });
+            if (segLegs.length === 0) continue;
+            allLegs.push(...segLegs);
 
-          if (legs.length === 0) continue;
-          const firstLeg = legs[0];
-          const lastLeg = legs[legs.length - 1];
+            const segFirst = segLegs[0];
+            const segLast = segLegs[segLegs.length - 1];
+            const segDuration = legDesc.elapsedTime || segLegs.reduce((s, l) => s + l.durationMinutes, 0);
+            
+            segmentDetails.push({
+              segmentIndex: legIdx,
+              origin: segFirst.origin,
+              destination: segLast.destination,
+              departureTime: segFirst.departureTime,
+              arrivalTime: segLast.arrivalTime,
+              duration: formatDuration(segDuration),
+              durationMinutes: segDuration,
+              stops: segLegs.length - 1,
+              stopCodes: segLegs.length > 1 ? segLegs.slice(0, -1).map(l => l.destination) : [],
+              airline: getAirlineName(segFirst.airlineCode),
+              airlineCode: segFirst.airlineCode,
+              flightNumber: segFirst.flightNumber,
+              legs: segLegs,
+              baggage: checkedBaggageGlobal,
+              handBaggage: handBaggageGlobal,
+              aircraft: segFirst.aircraft,
+            });
+          }
 
-          let totalDurationMin = legDesc.elapsedTime || legs.reduce((s, l) => s + l.durationMinutes, 0);
-          const direction = legIdx === 0 ? 'outbound' : 'return';
-          const pricePerDirection = itinLegs.length > 1 ? Math.round(totalAmount / itinLegs.length) : totalAmount;
+          if (allLegs.length === 0 || segmentDetails.length === 0) continue;
+
+          const firstSeg = segmentDetails[0];
+          const lastSeg = segmentDetails[segmentDetails.length - 1];
 
           let minSeats = Infinity;
           let bookingClass = '';
           const fareComponents = passengerInfoList[0]?.passengerInfo?.fareComponents || [];
           for (const fc of fareComponents) {
-            const segments = fc.segments || [];
-            for (const seg of segments) {
-              if (seg.seatsAvailable !== undefined && seg.seatsAvailable < minSeats) {
-                minSeats = seg.seatsAvailable;
-              }
+            for (const seg of (fc.segments || [])) {
+              if (seg.seatsAvailable !== undefined && seg.seatsAvailable < minSeats) minSeats = seg.seatsAvailable;
               if (seg.bookingCode) bookingClass = seg.bookingCode;
             }
           }
 
-          // Determine refundable status
           const isRefundable = fare.passengerInfoList?.[0]?.passengerInfo?.nonRefundable === false;
 
-          // Extract cancellation/date change from fare penalties
-          let cancellationPolicy = null;
-          let dateChangePolicy = null;
-          const penaltyInfos = fare.passengerInfoList?.[0]?.passengerInfo?.penaltyInformation || [];
-          for (const pen of penaltyInfos) {
-            const cat = pen.cat || pen.category || '';
-            const details = pen.details || {};
-            if (cat === 'Refund' || cat === 'Cancel') {
-              cancellationPolicy = {
-                beforeDeparture: details.amount ? parseFloat(details.amount) : null,
-                afterDeparture: 'As per airline policy',
-                noShow: 'As per airline policy',
-                currency: details.currency || currency,
-                allowed: !details.isNonRefundable,
-              };
-            }
-            if (cat === 'Exchange' || cat === 'Reissue') {
-              dateChangePolicy = {
-                changeAllowed: !details.isNonChangeable,
-                changeFee: details.amount ? parseFloat(details.amount) : null,
-                currency: details.currency || currency,
-              };
-            }
-          }
-
           flights.push({
-            id: `sabre-g-${group.groupDescription?.legDescriptions?.[0]?.departureDate || idx}-${legIdx}-${idx}`,
+            id: `sabre-mc-${idx}`,
             source: 'sabre',
-            direction,
-            isRoundTrip: itinLegs.length > 1,
-            airline: getAirlineName(firstLeg.airlineCode),
-            airlineCode: firstLeg.airlineCode,
+            direction: 'multicity',
+            isMultiCity: true,
+            segmentCount: segmentDetails.length,
+            segments: segmentDetails,
+            airline: firstSeg.airline,
+            airlineCode: firstSeg.airlineCode,
             airlineLogo: null,
-            flightNumber: firstLeg.flightNumber,
-            origin: firstLeg.origin,
-            destination: lastLeg.destination,
-            departureTime: firstLeg.departureTime,
-            arrivalTime: lastLeg.arrivalTime,
-            duration: formatDuration(totalDurationMin),
-            durationMinutes: totalDurationMin,
-            stops: legs.length - 1,
-            stopCodes: legs.length > 1 ? legs.slice(0, -1).map(l => l.destination) : [],
+            flightNumber: segmentDetails.map(s => s.flightNumber).join(', '),
+            origin: firstSeg.origin,
+            destination: lastSeg.destination,
+            departureTime: firstSeg.departureTime,
+            arrivalTime: lastSeg.arrivalTime,
+            duration: formatDuration(segmentDetails.reduce((s, seg) => s + seg.durationMinutes, 0)),
+            durationMinutes: segmentDetails.reduce((s, seg) => s + seg.durationMinutes, 0),
+            stops: segmentDetails.reduce((s, seg) => s + seg.stops, 0),
+            stopCodes: segmentDetails.flatMap(s => s.stopCodes),
             cabinClass: getCabinName(fareComponents[0]?.segments?.[0]?.cabin?.cabin || 'Y'),
             bookingClass,
             availableSeats: minSeats === Infinity ? null : minSeats,
-            price: pricePerDirection,
-            baseFare: itinLegs.length > 1 ? Math.round(baseFareAmt / itinLegs.length) : baseFareAmt,
-            taxes: itinLegs.length > 1 ? Math.round(taxesAmt / itinLegs.length) : taxesAmt,
-            totalRoundTripPrice: itinLegs.length > 1 ? totalAmount : undefined,
+            price: totalAmount,
+            baseFare: baseFareAmt,
+            taxes: taxesAmt,
             currency,
             refundable: isRefundable,
             baggage: checkedBaggageGlobal,
             handBaggage: handBaggageGlobal,
-            aircraft: firstLeg.aircraft,
-            legs,
+            aircraft: firstSeg.aircraft,
+            legs: allLegs,
             fareDetails: fareDetailsArr,
             timeLimit: fare.lastTicketDate || null,
-            cancellationPolicy,
-            dateChangePolicy,
-            validatingAirline: fare.validatingCarrierCode || firstLeg.airlineCode,
+            validatingAirline: fare.validatingCarrierCode || firstSeg.airlineCode,
             _sabreSeqNumber: idx,
           });
+        } else {
+          // ── ONE-WAY / ROUND-TRIP: per-leg emission (original logic) ──
+          for (let legIdx = 0; legIdx < itinLegs.length; legIdx++) {
+            const leg = itinLegs[legIdx];
+            const legRef = leg.ref;
+            const legDesc = legDescs.find(ld => ld.id === legRef) || {};
+            const schedules = legDesc.schedules || [];
+
+            const legDepartDate = groupDesc.legDescriptions?.[legIdx]?.departureDate || params.departDate || '';
+
+            const legs = schedules.map((sched) => {
+              const schedRef = sched.ref;
+              const schedDesc = scheduleDescs.find(sd => sd.id === schedRef) || {};
+              const dep = schedDesc.departure || sched.departure || {};
+              const arr = schedDesc.arrival || sched.arrival || {};
+              const carrier = schedDesc.carrier || {};
+
+              let depDateTime = dep.dateTime || null;
+              let arrDateTime = arr.dateTime || null;
+              if (!depDateTime && dep.time && legDepartDate) {
+                const depAdj = sched.departureDateAdjustment || 0;
+                const depDate = adjustDate(legDepartDate, depAdj);
+                depDateTime = `${depDate}T${dep.time}`;
+              }
+              if (!arrDateTime && arr.time && legDepartDate) {
+                const arrAdj = sched.departureDateAdjustment || 0;
+                const arrDateAdj = (schedDesc.elapsedTime && dep.time && arr.time) ? 
+                  (arr.time < dep.time ? arrAdj + 1 : arrAdj) : arrAdj;
+                const arrDate = adjustDate(legDepartDate, arrDateAdj);
+                arrDateTime = `${arrDate}T${arr.time}`;
+              }
+
+              return {
+                origin: dep.airport || '',
+                destination: arr.airport || '',
+                departureTime: depDateTime,
+                arrivalTime: arrDateTime,
+                durationMinutes: schedDesc.elapsedTime || 0,
+                duration: formatDuration(schedDesc.elapsedTime || 0),
+                flightNumber: `${carrier.marketing || carrier.operating || ''}${carrier.marketingFlightNumber || ''}`,
+                airlineCode: carrier.marketing || carrier.operating || '',
+                operatingAirline: carrier.operating || carrier.marketing || '',
+                aircraft: carrier.equipment?.code || '',
+                originTerminal: dep.terminal || '',
+                destinationTerminal: arr.terminal || '',
+                stops: [],
+              };
+            });
+
+            if (legs.length === 0) continue;
+            const firstLeg = legs[0];
+            const lastLeg = legs[legs.length - 1];
+
+            let totalDurationMin = legDesc.elapsedTime || legs.reduce((s, l) => s + l.durationMinutes, 0);
+            const direction = legIdx === 0 ? 'outbound' : 'return';
+            const pricePerDirection = itinLegs.length > 1 ? Math.round(totalAmount / itinLegs.length) : totalAmount;
+
+            let minSeats = Infinity;
+            let bookingClass = '';
+            const fareComponents = passengerInfoList[0]?.passengerInfo?.fareComponents || [];
+            for (const fc of fareComponents) {
+              const segments = fc.segments || [];
+              for (const seg of segments) {
+                if (seg.seatsAvailable !== undefined && seg.seatsAvailable < minSeats) {
+                  minSeats = seg.seatsAvailable;
+                }
+                if (seg.bookingCode) bookingClass = seg.bookingCode;
+              }
+            }
+
+            // Determine refundable status
+            const isRefundable = fare.passengerInfoList?.[0]?.passengerInfo?.nonRefundable === false;
+
+            // Extract cancellation/date change from fare penalties
+            let cancellationPolicy = null;
+            let dateChangePolicy = null;
+            const penaltyInfos = fare.passengerInfoList?.[0]?.passengerInfo?.penaltyInformation || [];
+            for (const pen of penaltyInfos) {
+              const cat = pen.cat || pen.category || '';
+              const details = pen.details || {};
+              if (cat === 'Refund' || cat === 'Cancel') {
+                cancellationPolicy = {
+                  beforeDeparture: details.amount ? parseFloat(details.amount) : null,
+                  afterDeparture: 'As per airline policy',
+                  noShow: 'As per airline policy',
+                  currency: details.currency || currency,
+                  allowed: !details.isNonRefundable,
+                };
+              }
+              if (cat === 'Exchange' || cat === 'Reissue') {
+                dateChangePolicy = {
+                  changeAllowed: !details.isNonChangeable,
+                  changeFee: details.amount ? parseFloat(details.amount) : null,
+                  currency: details.currency || currency,
+                };
+              }
+            }
+
+            flights.push({
+              id: `sabre-g-${group.groupDescription?.legDescriptions?.[0]?.departureDate || idx}-${legIdx}-${idx}`,
+              source: 'sabre',
+              direction,
+              isRoundTrip: itinLegs.length > 1,
+              airline: getAirlineName(firstLeg.airlineCode),
+              airlineCode: firstLeg.airlineCode,
+              airlineLogo: null,
+              flightNumber: firstLeg.flightNumber,
+              origin: firstLeg.origin,
+              destination: lastLeg.destination,
+              departureTime: firstLeg.departureTime,
+              arrivalTime: lastLeg.arrivalTime,
+              duration: formatDuration(totalDurationMin),
+              durationMinutes: totalDurationMin,
+              stops: legs.length - 1,
+              stopCodes: legs.length > 1 ? legs.slice(0, -1).map(l => l.destination) : [],
+              cabinClass: getCabinName(fareComponents[0]?.segments?.[0]?.cabin?.cabin || 'Y'),
+              bookingClass,
+              availableSeats: minSeats === Infinity ? null : minSeats,
+              price: pricePerDirection,
+              baseFare: itinLegs.length > 1 ? Math.round(baseFareAmt / itinLegs.length) : baseFareAmt,
+              taxes: itinLegs.length > 1 ? Math.round(taxesAmt / itinLegs.length) : taxesAmt,
+              totalRoundTripPrice: itinLegs.length > 1 ? totalAmount : undefined,
+              currency,
+              refundable: isRefundable,
+              baggage: checkedBaggageGlobal,
+              handBaggage: handBaggageGlobal,
+              aircraft: firstLeg.aircraft,
+              legs,
+              fareDetails: fareDetailsArr,
+              timeLimit: fare.lastTicketDate || null,
+              cancellationPolicy,
+              dateChangePolicy,
+              validatingAirline: fare.validatingCarrierCode || firstLeg.airlineCode,
+              _sabreSeqNumber: idx,
+            });
+          }
         }
       }
     }
