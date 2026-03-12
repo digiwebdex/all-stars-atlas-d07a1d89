@@ -1,7 +1,7 @@
 # Seven Trip — Working Deployment Commands
 
 > **Auto-updated** with every change. Copy-paste ready commands for your VPS.
-> Last updated: 2026-03-12 (v3.7.6 — Multi-city detail parity, airline filter bar for all trip types)
+> Last updated: 2026-03-12 (v3.7.7 — BDFare normalizer rewrite, carrier filter fix, cabin class accuracy)
 
 ---
 
