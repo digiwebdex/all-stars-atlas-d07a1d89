@@ -1250,6 +1250,14 @@ const FlightCard = ({
           </div>
         </div>
 
+        {/* Fare Options Panel */}
+        <AnimatePresence>
+          {showFareOptions && (
+            <FareOptionsPanel flights={[flight]}
+              onBook={() => cardNavigate(`/flights/book?adults=${cardSearchParams.get("adults") || "1"}&children=${cardSearchParams.get("children") || "0"}&infants=${cardSearchParams.get("infants") || "0"}&cabin=${cardSearchParams.get("cabin") || "economy"}`, { state: { outboundFlight: flight } })} />
+          )}
+        </AnimatePresence>
+
         {/* ── Expanded detail panel ── */}
         <AnimatePresence>
           {isExpanded && (
