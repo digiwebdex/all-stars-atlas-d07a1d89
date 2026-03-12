@@ -29,13 +29,17 @@ async function getSabreConfig() {
     const baseUrl = isProd
       ? (cfg.prod_url || 'https://api.platform.sabre.com')
       : (cfg.sandbox_url || 'https://api.cert.platform.sabre.com');
-    const clientId = isProd ? cfg.prod_client_id : cfg.sandbox_client_id;
-    const clientSecret = isProd ? cfg.prod_client_secret : cfg.sandbox_client_secret;
+    // Support both camelCase (from SQL seed) and snake_case (from admin panel)
+    const clientId = cfg.clientId || cfg.prod_client_id || cfg.sandbox_client_id || '';
+    const clientSecret = cfg.clientSecret || cfg.prod_client_secret || cfg.sandbox_client_secret || '';
     if (!clientId || !clientSecret) return null;
 
     // EPR + password required for OAuth v3 password grant
     const epr = cfg.epr || '';
-    const agencyPassword = cfg.agency_password || '';
+    // Use environment-appropriate password
+    const agencyPassword = isProd
+      ? (cfg.prodPassword || cfg.agency_password || '')
+      : (cfg.agencyPassword || cfg.agency_password || '');
     if (!epr || !agencyPassword) {
       console.error('[Sabre] EPR and agency_password are required for OAuth v3. Configure in Admin → Settings → API Integrations → Sabre GDS');
       return null;
@@ -45,10 +49,12 @@ async function getSabreConfig() {
       baseUrl: baseUrl.replace(/\/$/, ''),
       clientId,
       clientSecret,
-      pcc: cfg.pcc || '',
+      pcc: cfg.pcc || cfg.scCode || '',
       epr,
       agencyPassword,
       environment: cfg.environment || 'cert',
+      ptr: cfg.ptr || cfg.PTR || '',
+      tamPool: cfg.tamPool || '',
     };
     _configCacheTime = Date.now();
     return _configCache;
