@@ -10,13 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Plane, ArrowRight, User, Clock, Luggage, Shield, CreditCard,
   UtensilsCrossed, Plus, Briefcase, Users, FileText,
   AlertCircle, CheckCircle2, Timer, AlertTriangle, Package,
   ScanLine, Search, Share2, Save, Upload, X, Eye,
   Accessibility, Heart, Dog, Baby, MessageSquare, Star,
-  Armchair,
+  Armchair, Info,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useCmsPageContent } from "@/hooks/useCmsContent";
