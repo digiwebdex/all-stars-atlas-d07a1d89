@@ -1714,9 +1714,14 @@ const FlightResults = () => {
           if (!valid) return false;
         }
       }
+      // Baggage filter
+      if (selectedBaggage.length > 0) {
+        const bag = String(f.baggage || '').trim();
+        if (!bag || !selectedBaggage.includes(bag)) return false;
+      }
       return true;
     });
-  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, selectedLayoverAirports, layoverDurationRange]);
+  }, [airlineFilter, selectedAirlines, priceRange, stopsFilter, departTimeRange, arrivalTimeRange, refundableOnly, selectedAlliances, durationRange, selectedLayoverAirports, layoverDurationRange, selectedBaggage]);
 
   const filteredOutbound = useMemo(() => sortFlights(applyFilters(outboundFlights), sortBy), [outboundFlights, sortBy, applyFilters]);
   const filteredReturn = useMemo(() => sortFlights(applyFilters(returnFlights), sortBy), [returnFlights, sortBy, applyFilters]);
