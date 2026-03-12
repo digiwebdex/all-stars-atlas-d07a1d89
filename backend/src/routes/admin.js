@@ -544,8 +544,10 @@ router.get('/settings', async (req, res) => {
         try { settings.bankAccounts = JSON.parse(r.setting_value); } catch {}
       } else if (r.setting_key === 'notifications') {
         try { settings.notifications = JSON.parse(r.setting_value); } catch {}
-      } else if (r.setting_key === 'markup_config') {
+    } else if (r.setting_key === 'markup_config') {
         try { settings.markup_config = JSON.parse(r.setting_value); } catch {}
+      } else if (r.setting_key === 'airline_markup_config') {
+        try { settings.airline_markup_config = JSON.parse(r.setting_value); } catch {}
       } else if (r.setting_key === 'currency_rates') {
         try { settings.currency_rates = JSON.parse(r.setting_value); } catch {}
       } else {
@@ -563,6 +565,7 @@ router.get('/settings', async (req, res) => {
       settings: {
         ...settings,
         markup_config: settings.markup_config || null,
+        airline_markup_config: settings.airline_markup_config || null,
         currency_rates: settings.currency_rates || null,
       },
       paymentMethods: settings.paymentMethods || null,
@@ -654,6 +657,11 @@ router.put('/settings', async (req, res) => {
     if (req.body.markup_config) {
       const val = JSON.stringify(req.body.markup_config);
       await db.query('INSERT INTO system_settings (setting_key, setting_value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()', ['markup_config', val, val]);
+      // Also save airline markup config if included
+      if (req.body.airline_markup_config) {
+        const airlineVal = JSON.stringify(req.body.airline_markup_config);
+        await db.query('INSERT INTO system_settings (setting_key, setting_value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()', ['airline_markup_config', airlineVal, airlineVal]);
+      }
       return res.json({ message: 'Markup config saved' });
     }
 
