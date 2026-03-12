@@ -1206,7 +1206,7 @@ const FlightCard = ({
           </div>
 
           {/* Flight times + baggage info */}
-          <div className="flex-1 p-3 sm:p-5">
+          <div className="flex-1 p-3 sm:p-4 min-w-0">
             <div className="flex items-center gap-2 sm:gap-5">
               {/* Departure */}
               <div className="text-center shrink-0">
