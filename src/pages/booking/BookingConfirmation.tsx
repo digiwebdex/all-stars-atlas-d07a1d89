@@ -90,7 +90,7 @@ const BookingConfirmation = () => {
         arrivalTime: "",
         duration: "",
         cabinClass: cabin,
-        baggage: "As per airline policy",
+        baggage: "",
         status: "Confirmed",
         meal: booking.meal || "",
       });
